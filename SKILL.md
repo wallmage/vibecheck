@@ -128,25 +128,67 @@ Show their top 3 waste patterns (from `top3_waste`) with plain-language analogie
 
 End with: **"The fix is simple — one paragraph added to your [instruction_file_name]. Same work gets done, fewer wasted messages. Takes about a minute. Want me to set it up?"** WAIT for response.
 
-### 5. Report + fixes
+### 5. Progressive optimization
 
-Generate the report when analysis data exists:
+This is the core of vibecheck — a step-by-step guided optimization where the user controls every change.
 
+**Always backup first.** Before touching the instruction file:
+```bash
+cp /path/to/instruction_file /path/to/instruction_file.vibecheck-backup
+```
+Tell the user: "I've backed up your [file name] — you can revert anytime with `cp [file].vibecheck-backup [file]`."
+
+**If no instruction file exists:** Offer to create one. "You don't have a [CLAUDE.md / .cursorrules / etc.] yet — that's the file your AI reads for project-specific rules. Want me to create one with the cost-saving rules? It's just a text file in your project root."
+
+**Generate the analysis report** (for your reference, not shown raw to user):
 ```bash
 python3 SKILL_DIR/scripts/report.py /tmp/vibecheck_analysis.json /path/to/instruction_file
 ```
 
-Then propose edits to the detected instruction file.
+**How to build the steps:** Read the waste_breakdown from the analysis. Sort patterns by per-session cost (highest first). Group related patterns into 3-4 optimization steps. The grouping depends on what the data shows — use judgment. Typical grouping:
 
-**If no instruction file exists:** Offer to create one. "You don't have a [CLAUDE.md / .cursorrules / etc.] yet — that's the file your AI reads for project-specific rules. Want me to create one with the cost-saving rules? It's just a text file in your project root." If they agree, create the appropriate file for their tool with the fix block below.
+- **Step 1: Biggest waste patterns** — the top 2-3 patterns by cost (usually idle narration, context rot, verbose output, or ping-pong debugging). These alone often account for 60-70% of waste.
+- **Step 2: Turn density** — patterns about wasted turns (unchained commands, unbatched edits, file re-reads, git ceremony). These are safe, mechanical fixes.
+- **Step 3: Instruction file compression** — if the file is large (>100 lines), compressing it reduces the context tax on every single turn.
+- **Step 4: User habits** — things that can't go in the instruction file (start fresh chats between tasks, use /clear after long debugging, choose the right model). Teach these verbally.
 
-Adapt format to the tool:
+If a pattern has near-zero cost for this user, skip it entirely. If only 2 steps have meaningful savings, do 2 steps. Don't pad.
+
+**For each step, follow this exact flow:**
+
+1. **Explain** — what are these patterns, how do they waste money, what's the mechanism. Use analogies from [references/waste-patterns.md](references/waste-patterns.md). Keep it conversational, 2-3 sentences.
+
+2. **Show projected savings** — "These patterns cost you $X.XX/session. Fixing them would bring your average from $Y.YY to $Z.ZZ/session (~$NNN/month savings at your pace)." Use real numbers from the analysis.
+
+3. **Show the proposed change** — display the exact diff of what will be added/changed/removed in their instruction file. Format it clearly:
+   ```
+   I'd add this near the top of your [file name]:
+   
+   + **Cost rules:** No turn without tool call. No narration/status/"now I'll…". Think → act same turn.
+   + Verbose output: pipe build/test/install to /tmp/, use --quiet flags, tail -50 max.
+   ```
+   Or for compression: show what's being removed and why it's safe.
+
+4. **Ask permission** — "Want me to apply this? (You can always revert from the backup.)" WAIT for response.
+
+5. **Handle the response:**
+   - **Yes** → apply the change, confirm, move to next step.
+   - **No / skip** → ask briefly: "Any concern, or just skip this one?" If they share thoughts, acknowledge them. Then move to next step. Never push.
+   - **Modify** → if they want a softer version, offer the alternative from [references/fix-blocks.md](references/fix-blocks.md).
+
+**Every step is optional.** The user can accept steps 1 and 3 but skip 2 and 4. That's fine. Each step is independent.
+
+**Adapt format to the tool:**
 - CLAUDE.md / AGENTS.md → markdown paragraphs
-- .cursorrules / .windsurfrules / .clinerules → one rule per line
+- .cursorrules / .windsurfrules / .clinerules → one rule per line, no markdown
 - SOUL.md → personality/rules section
 - Others → markdown paragraphs (safe default)
 
-**The fix block** — add near top of instruction file. This is the core behavior change that cuts waste:
+**Do not suggest unenforceable rules.** Instruction files can change AI behavior (no narration, batch edits, chain commands) but cannot mechanically enforce limits. Never propose rules like "cap sessions at N turns" or "mandatory compact after N turns" — the AI cannot count its own turns or force-stop a task midway. If a task needs 80 turns, a turn cap would halt it arbitrarily. Instead, teach these as **user habits** in step 4.
+
+#### Rule library
+
+The rules below are the building blocks. Pick the ones that match the user's actual waste patterns — don't dump all of them at once. Add them across the relevant steps.
 
 For interactive tools (Claude Code, Cursor, Codex, etc.):
 ```
@@ -159,27 +201,22 @@ For always-on agents (OpenClaw, etc.):
 **Efficiency rules:** Heartbeat frequency: 30min minimum for idle checks. Skip wake-up if no triggers/notifications. Compress workspace files — remove verbose personality text, keep behavioral rules. Prune session history: archive after 50 turns, summarize, start fresh. Pipe all command output to files, never inline. No status messages between actions.
 ```
 
-These are the tested, proven rules. Present them as safe defaults — they change HOW the AI works, not WHAT it does. If the user is cautious, offer the softer alternative from [references/fix-blocks.md](references/fix-blocks.md).
+If the user is cautious about the strong rules, offer the softer alternative from [references/fix-blocks.md](references/fix-blocks.md).
 
-**Do not suggest unenforceable rules.** Instruction files can change AI behavior (no narration, batch edits, chain commands) but cannot mechanically enforce limits. Never propose rules like "cap sessions at N turns" or "mandatory compact after N turns" — the AI cannot count its own turns or force-stop a task midway. If a task needs 80 turns, a turn cap would halt it arbitrarily. Instead, suggest the user start fresh chats between unrelated tasks — that's a user habit, not an AI rule.
+#### Compression (typically step 3)
 
-### 6. Compression flow
-
-Compress the detected instruction file (not hardcoded to CLAUDE.md):
+Compress the detected instruction file when it's large enough to matter:
 
 ```bash
-cp /path/to/instruction_file /path/to/instruction_file.backup
 python3 SKILL_DIR/scripts/measure.py /path/to/instruction_file
 python3 SKILL_DIR/scripts/strip_markdown.py /path/to/instruction_file /path/to/instruction_file.working
 ```
 
-Four passes — present each separately, show the diff, and WAIT for user approval before applying. Do not batch all passes into one response:
+Four sub-passes — present each separately, show the diff, and WAIT for approval:
 1. **Strip markdown** (automatic, lossless) — remove formatting cruft. Show reduction, apply without asking.
-2. **Creative compression** (needs approval) — dedup, compress code blocks, trim verbose rationale. Show each proposed change and wait for approval.
-3. **Remove human-only content** (needs approval) — installation guides, coaching, verbose WHY explanations. Show what would be removed and wait for approval.
+2. **Creative compression** (needs approval) — dedup, compress code blocks, trim verbose rationale.
+3. **Remove human-only content** (needs approval) — installation guides, coaching, verbose WHY explanations.
 4. **Telegram mode** (optional, explicit permission only) — rewrite in shorthand fragments. Only offer if user asks or if target line count requires it.
-
-Show reduction after each pass.
 
 **Preservation rules — these are non-negotiable:**
 - Trigger patterns, shell commands, file paths — exact syntax, no abbreviation
@@ -189,9 +226,9 @@ Show reduction after each pass.
 - Decision references (e.g., "DEC-003") — these link to design decisions
 - When in doubt, keep it. Dropping a behavioral rule silently is worse than keeping 10 extra lines.
 
-### 7. Before/after comparison
+### 6. Before/after comparison
 
-After applying fixes:
+After all optimization steps (whether the user accepted all, some, or none):
 
 ```bash
 python3 SKILL_DIR/scripts/compare.py /tmp/vibecheck_analysis.json
@@ -199,9 +236,11 @@ python3 SKILL_DIR/scripts/compare.py /tmp/vibecheck_analysis.json
 
 Snapshots persist in `~/.vibecheck/snapshots/`. First run shows projections, subsequent runs show actual delta with ✅/⚠️ flags.
 
-Present in plain language: "Last time you averaged 36.8 turns at $2.62. Now you're at 25.9 turns at $1.35 — that's 49% less waste."
+Summarize what was applied: "You accepted optimizations for [patterns]. Here's your projected profile:" Then show the before/after in plain language: "Right now you average $2.62/session. After these changes, projected: $1.35/session — that's ~49% less waste."
 
-End with: "Run `/vibecheck scan` again in 1-2 weeks to see your actual savings."
+If they skipped some steps: "You skipped [pattern group]. That's fine — you can always run `/vibecheck` again if you change your mind."
+
+End with: "Run `/vibecheck scan` again in 1-2 weeks to see your ACTUAL savings. The optimizer auto-compares against today's baseline."
 
 ## Guidance
 
