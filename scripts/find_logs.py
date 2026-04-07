@@ -109,27 +109,33 @@ def detect_platform():
         return 'linux'
 
 def get_setup_info():
-    """Return platform-specific setup command and explanation for sandbox users."""
-    plat = detect_platform()
+    """Return setup info for sandbox users.
 
-    if plat == 'mac':
-        source = '~/.claude/projects'
-        dest = '~/vibecheck-logs'
-        command = f'cp -r {source} {dest}'
-    elif plat == 'windows':
-        source = '%APPDATA%\\Claude\\projects'
-        dest = '%USERPROFILE%\\vibecheck-logs'
-        command = f'xcopy /E /I "{source}" "{dest}"'
-    else:  # linux
-        source = '~/.claude/projects'
-        dest = '~/vibecheck-logs'
-        command = f'cp -r {source} {dest}'
+    The AI will construct the full command using its known SKILL_DIR path.
+    We return the script name and a fallback one-liner for each platform."""
+    plat = detect_platform()
+    dest = '~/vibecheck-logs'
+
+    # Fallback one-liner if AI can't construct the export_logs.py path
+    # Uses Python (required for vibecheck anyway) — works on all platforms
+    one_liner = (
+        'python3 -c "'
+        'import shutil;from pathlib import Path;from datetime import datetime,timedelta,timezone;'
+        'src=Path.home()/\\".claude\\"/\\"projects\\";dst=Path.home()/\\"vibecheck-logs\\";'
+        'cutoff=datetime.now(timezone.utc)-timedelta(days=14);'
+        '[((dst/f.relative_to(src).parent).mkdir(parents=True,exist_ok=True),'
+        'shutil.copy2(f,dst/f.relative_to(src)))'
+        'for f in src.rglob(\\"*.jsonl\\")'
+        'if datetime.fromtimestamp(f.stat().st_mtime,tz=timezone.utc)>cutoff];'
+        'print(f\\"Done! Logs copied to {dst}\\")'
+        '"'
+    )
 
     return {
         'platform': plat,
-        'source': source,
+        'export_script': 'scripts/export_logs.py',
         'dest': dest,
-        'command': command,
+        'fallback_command': one_liner,
     }
 
 def main():
@@ -159,8 +165,9 @@ def main():
         print(json.dumps({
             "error": "no_logs",
             "platform": setup['platform'],
-            "setup_command": setup['command'],
-            "setup_dest": setup['dest'],
+            "export_script": setup['export_script'],
+            "dest": setup['dest'],
+            "fallback_command": setup['fallback_command'],
             "sessions": [],
             "total_sessions": 0,
         }, indent=2))

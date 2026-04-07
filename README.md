@@ -56,14 +56,13 @@ This gives you full analysis with your real session data — the CLI can read yo
 
 Most AI coding apps run inside a sandbox — they can see your project files but not your chat history. It's like a guest who can see your living room but not your bedroom.
 
-vibecheck will ask you to run one command in your regular terminal to copy your chat history to a visible folder. It gives you the right command for your OS automatically:
+vibecheck will ask you to open your terminal and paste one command. It only copies the last 14 days (~20-50 MB, not your full history). Same command works on Mac, Windows, and Linux:
 
-| OS | Command |
-|---|---|
-| Mac/Linux | `cp -r ~/.claude/projects ~/vibecheck-logs` |
-| Windows | `xcopy /E /I "%APPDATA%\Claude\projects" "%USERPROFILE%\vibecheck-logs"` |
+```bash
+python3 path/to/vibecheck/scripts/export_logs.py
+```
 
-One-time thing. After that, vibecheck finds it automatically.
+vibecheck tells you the exact command — just paste it. After that, point the tool to `~/vibecheck-logs` and you're done.
 
 If you skip this step, vibecheck still works — it teaches you everything using industry averages instead of your personal data.
 

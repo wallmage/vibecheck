@@ -56,24 +56,29 @@ Do NOT show raw output. Read the lesson JSON for all following steps.
 
 **Your job: make it easy.** Tell the user (adapt to their language):
 
-> "To give me your real data, I need your chat history — but it's stored in a private folder I can't peek into from here. No worries, it's a one-time thing. Open your regular terminal app and paste this:"
+> "I can teach you about AI costs right now — but for a personalized scan with YOUR real numbers, I need your chat history. It's stored in a private folder I can't peek into from here — like a guest who can see your living room but not your bedroom. No worries, it takes 5 seconds. Open your regular terminal app (Terminal on Mac, Command Prompt on Windows) and paste this one line:"
 
-Then show the `setup_command` from the JSON. It's already platform-specific:
-- **Mac/Linux:** `cp -r ~/.claude/projects ~/vibecheck-logs`
-- **Windows:** `xcopy /E /I "%APPDATA%\Claude\projects" "%USERPROFILE%\vibecheck-logs"`
+Construct the command using SKILL_DIR:
+```
+python3 SKILL_DIR/scripts/export_logs.py
+```
+
+This copies ONLY the last 14 days of logs (~20-50 MB, not the full history). It prints "Done!" when finished. Works on Mac, Windows, and Linux — same command.
+
+If you can't determine SKILL_DIR, use the `fallback_command` from the JSON output instead.
 
 Then say:
 
-> "Done? Great — now point me to that folder."
+> "Done? Great — now point me to that folder (it's in your home folder, called vibecheck-logs)."
 
 If the environment supports folder mounting (Cowork, Cursor, etc.), request to mount `~/vibecheck-logs`. If not, ask the user to provide the path.
 
 Then re-run: `python3 SKILL_DIR/scripts/find_logs.py 14 ~/vibecheck-logs > /tmp/claude_sessions.json`
 
-The script also auto-checks these folders (no manual path needed if they used the default destination):
+The script auto-checks these folders (no manual path needed if they used the default destination):
 `~/vibecheck-logs`, `~/claude-logs`, `~/Desktop/vibecheck-logs`, `~/Documents/vibecheck-logs`, `~/Developer/vibecheck-logs`
 
-**If user doesn't want to / can't copy:** That's fine — continue with industry averages. The lessons are still valuable. At the end, mention they can run `/vibecheck scan` from a terminal app for the full personalized experience.
+**If user doesn't want to copy:** That's fine — say "No problem! I'll teach you the concepts using typical numbers instead. You can always come back later for the personalized scan." Continue with industry averages.
 
 Note: find_logs.py currently only parses Claude Code JSONL. For other tools, the lesson will use industry averages and explain the patterns generically. Log parsing for Cursor (SQLite), Cline (JSON), etc. is planned.
 
