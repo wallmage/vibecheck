@@ -539,8 +539,20 @@ def main():
         print("  Input: JSON from find_logs.py (reads 'sessions' array)")
         sys.exit(1)
 
-    with open(sys.argv[1]) as f:
-        data = json.load(f)
+    sessions_path = sys.argv[1]
+    if not os.path.exists(sessions_path):
+        print(json.dumps({"error": f"Sessions file not found: {sessions_path}"}))
+        sys.exit(1)
+    with open(sessions_path) as f:
+        content = f.read().strip()
+    if not content:
+        print(json.dumps({"error": f"Sessions file is empty: {sessions_path}"}))
+        sys.exit(1)
+    try:
+        data = json.loads(content)
+    except json.JSONDecodeError as e:
+        print(json.dumps({"error": f"Invalid JSON in {sessions_path}: {str(e)}"}))
+        sys.exit(1)
 
     sessions_meta = data.get('sessions', [])
     if not sessions_meta:

@@ -318,8 +318,20 @@ def main():
         print("Usage: explain.py <analysis.json>")
         sys.exit(1)
 
-    with open(sys.argv[1]) as f:
-        data = json.load(f)
+    analysis_path = sys.argv[1]
+    if not os.path.exists(analysis_path):
+        print(f"Error: analysis file not found: {analysis_path}", file=sys.stderr)
+        sys.exit(1)
+    with open(analysis_path) as f:
+        content = f.read().strip()
+    if not content:
+        print(f"Error: analysis file is empty: {analysis_path}", file=sys.stderr)
+        sys.exit(1)
+    try:
+        data = json.loads(content)
+    except json.JSONDecodeError as e:
+        print(f"Error: invalid JSON in {analysis_path}: {e}", file=sys.stderr)
+        sys.exit(1)
 
     lesson = build_lesson_plan(data)
     print(json.dumps(lesson, indent=2))

@@ -7,7 +7,7 @@ Two versions: strong (default, proven 40-50% waste reduction) and soft (for caut
 For interactive tools:
 ```text
 **Cost rules:** Every turn = context tax. No turn without tool call. No narration/status/"now I'll…". Think → act same turn. Batch independent tool calls (multiple Reads/Edits/files per turn). Chain commands with `&&`. File re-reads banned — content in context after first read. User sees zero code/diffs unless asked.
-Verbose output: pipe build/test/install to /tmp/, use --quiet flags, tail -50 max. After 2 failed fixes on same file: stop, re-read error fully, think, single targeted fix. Clear/compact between unrelated tasks — never exceed ~20 turns without clearing. Max 3 file reads before first Edit.
+Verbose output: pipe build/test/install to /tmp/, use --quiet flags, tail -50 max. After 2 failed fixes on same file: stop, re-read error fully, think, single targeted fix. Use /clear or /compact between unrelated tasks. Max 3 file reads before first Edit.
 ```
 
 For always-on agents:
@@ -48,6 +48,15 @@ Start a new chat between unrelated tasks.
 Propose these separately and explain tradeoffs. Do not add without user approval:
 
 - strict read-before-edit limits
-- hard turn caps per session
 - forcing command chaining in cases where separate execution is safer
 - aggressive no-reread language that could cause the AI to skip necessary re-reads
+
+## Never suggest these
+
+These sound good but are unenforceable or harmful. Do not propose them as instruction file rules:
+
+- **Turn caps** ("stop after 35 turns", "mandatory compact at 20 turns") — the AI cannot count its own turns or force-stop. If a task needs 60 turns, a cap would halt it midway.
+- **Session time limits** — same problem, not enforceable via text.
+- **Mandatory model switching** ("use Haiku for simple tasks") — the user controls model selection, not the instruction file.
+
+Instead, teach these as **user habits** in the teaching flow: "Start a fresh chat when you switch tasks. It's free and each message in the new chat is cheaper."

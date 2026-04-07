@@ -10,8 +10,19 @@ from pathlib import Path
 SNAPSHOT_DIR = Path.home() / '.vibecheck' / 'snapshots'
 
 def load_json(path):
+    if not os.path.exists(path):
+        print(f"Error: file not found: {path}", file=sys.stderr)
+        sys.exit(1)
     with open(path) as f:
-        return json.load(f)
+        content = f.read().strip()
+    if not content:
+        print(f"Error: file is empty: {path}", file=sys.stderr)
+        sys.exit(1)
+    try:
+        return json.loads(content)
+    except json.JSONDecodeError as e:
+        print(f"Error: invalid JSON in {path}: {e}", file=sys.stderr)
+        sys.exit(1)
 
 def find_latest_snapshot():
     """Find the most recent saved snapshot for auto-comparison."""

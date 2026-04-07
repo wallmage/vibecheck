@@ -17,7 +17,17 @@ def main():
         sys.exit(1)
 
     with open(analysis_path) as f:
-        data = json.load(f)
+        content = f.read().strip()
+    if not content:
+        print(f"Error: analysis file is empty: {analysis_path}", file=sys.stderr)
+        print("This usually means the previous script (analyze_*_sessions.py) failed or produced no output.", file=sys.stderr)
+        print("Re-run the scan from the beginning.", file=sys.stderr)
+        sys.exit(1)
+    try:
+        data = json.loads(content)
+    except json.JSONDecodeError as e:
+        print(f"Error: invalid JSON in {analysis_path}: {e}", file=sys.stderr)
+        sys.exit(1)
 
     instruction_file_path = sys.argv[2] if len(sys.argv) > 2 else None
     instruction_file_name = Path(instruction_file_path).name if instruction_file_path else "instruction file"

@@ -151,7 +151,7 @@ Adapt format to the tool:
 For interactive tools (Claude Code, Cursor, Codex, etc.):
 ```
 **Cost rules:** Every turn = context tax. No turn without tool call. No narration/status/"now I'll…". Think → act same turn. Batch independent tool calls (multiple Reads/Edits/files per turn). Chain commands with `&&`. File re-reads banned — content in context after first read. User sees zero code/diffs unless asked.
-Verbose output: pipe build/test/install to /tmp/, use --quiet flags, tail -50 max. After 2 failed fixes on same file: stop, re-read error fully, think, single targeted fix. Clear/compact between unrelated tasks — never exceed ~20 turns without clearing. Max 3 file reads before first Edit.
+Verbose output: pipe build/test/install to /tmp/, use --quiet flags, tail -50 max. After 2 failed fixes on same file: stop, re-read error fully, think, single targeted fix. Use /clear or /compact between unrelated tasks. Max 3 file reads before first Edit.
 ```
 
 For always-on agents (OpenClaw, etc.):
@@ -160,6 +160,8 @@ For always-on agents (OpenClaw, etc.):
 ```
 
 These are the tested, proven rules. Present them as safe defaults — they change HOW the AI works, not WHAT it does. If the user is cautious, offer the softer alternative from [references/fix-blocks.md](references/fix-blocks.md).
+
+**Do not suggest unenforceable rules.** Instruction files can change AI behavior (no narration, batch edits, chain commands) but cannot mechanically enforce limits. Never propose rules like "cap sessions at N turns" or "mandatory compact after N turns" — the AI cannot count its own turns or force-stop a task midway. If a task needs 80 turns, a turn cap would halt it arbitrarily. Instead, suggest the user start fresh chats between unrelated tasks — that's a user habit, not an AI rule.
 
 ### 6. Compression flow
 
