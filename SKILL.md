@@ -8,6 +8,22 @@ Supports 24+ tools: Claude Code, Cursor, Codex, Windsurf, Cline, Roo Code, Kilo 
 
 Works on macOS, Windows, Linux. Works from iPad/mobile via SSH.
 
+## Privacy
+
+All data stays on the user's machine. No server, no uploads, no telemetry. The scripts read local log files, analyze in memory, print to screen. Stress this when onboarding — users worry about their code and conversations being sent somewhere.
+
+## How vibecheck helps (two modes)
+
+**With a scan (full experience):** Reads last 14 days of session logs to find specific waste patterns with real dollar amounts. Requires access to session logs (JSONL files).
+
+**Without a scan (still ~80% of the benefit):** Even if logs aren't available, vibecheck can:
+- Compress the instruction file (CLAUDE.md, AGENTS.md, etc.) to reduce per-message cost
+- Add cost-saving rules that change AI behavior (stop narrating, batch edits, chain commands)
+- Teach waste patterns using industry averages
+- These fixes alone cut 20-40% of waste
+
+Both modes need access to the project folder to read/edit the instruction file. Ask permission: "I need to read your project folder to find and optimize your instruction file (CLAUDE.md, AGENTS.md, etc.). I'll show you every change before applying. OK?"
+
 ## Language Rule
 
 Detect system language via explain.py output (`language` field). Default all responses to that language. If user writes in a different language, switch to match — output language = input language, always. All lesson text, questions, reports: in their language.
