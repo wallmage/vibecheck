@@ -150,8 +150,8 @@ Adapt format to the tool:
 
 For interactive tools (Claude Code, Cursor, Codex, etc.):
 ```
-**Cost rules:** Every turn = context tax. No turn without tool call. No narration/status/"now I'll…". Think → act same turn. Batch independent tool calls (multiple Reads/Edits/files per turn). Chain commands with `&&`. File re-reads banned — content in context after first read. User sees zero code/diffs unless asked.
-Verbose output: pipe build/test/install to /tmp/, use --quiet flags, tail -50 max. After 2 failed fixes on same file: stop, re-read error fully, think, single targeted fix. Use /clear or /compact between unrelated tasks. Max 3 file reads before first Edit.
+**Cost rules:** Every turn = context tax. No turn without tool call. No narration/status/"now I'll…". Think → act same turn. Batch independent tool calls (multiple Reads/Edits/files per turn). Chain commands with `&&` when safe. File re-reads banned — content in context after first read. Re-read only if the file changed or accuracy depends on it. User sees zero code/diffs unless asked.
+Verbose output: pipe build/test/install to /tmp/, use --quiet flags, tail -50 max. After 2 failed fixes on same file: stop, re-read error fully, think, single targeted fix. Use /clear or /compact between unrelated tasks.
 ```
 
 For always-on agents (OpenClaw, etc.):

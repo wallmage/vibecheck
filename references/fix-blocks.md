@@ -6,8 +6,8 @@ Two versions: strong (default, proven 40-50% waste reduction) and soft (for caut
 
 For interactive tools:
 ```text
-**Cost rules:** Every turn = context tax. No turn without tool call. No narration/status/"now I'll…". Think → act same turn. Batch independent tool calls (multiple Reads/Edits/files per turn). Chain commands with `&&`. File re-reads banned — content in context after first read. User sees zero code/diffs unless asked.
-Verbose output: pipe build/test/install to /tmp/, use --quiet flags, tail -50 max. After 2 failed fixes on same file: stop, re-read error fully, think, single targeted fix. Use /clear or /compact between unrelated tasks. Max 3 file reads before first Edit.
+**Cost rules:** Every turn = context tax. No turn without tool call. No narration/status/"now I'll…". Think → act same turn. Batch independent tool calls (multiple Reads/Edits/files per turn). Chain commands with `&&` when safe. File re-reads banned — content in context after first read. Re-read only if the file changed or accuracy depends on it. User sees zero code/diffs unless asked.
+Verbose output: pipe build/test/install to /tmp/, use --quiet flags, tail -50 max. After 2 failed fixes on same file: stop, re-read error fully, think, single targeted fix. Use /clear or /compact between unrelated tasks.
 ```
 
 For always-on agents:
@@ -36,8 +36,8 @@ Cost rules: keep turns dense and useful. Avoid status-only replies when you can 
 ```text
 Every turn should include a tool call or code change. Do not narrate what you are about to do.
 Think and act in the same turn. Batch independent edits into one response.
-Chain shell commands with && instead of running them separately.
-Do not re-read files that are already in context.
+Chain shell commands with && when they are independent and safe to batch.
+Do not re-read files that are already in context unless they changed.
 Pipe verbose build output to a temp file. Use --quiet flags when available.
 After 2 failed fixes on the same file, stop, re-read the error, and make one targeted fix.
 Start a new chat between unrelated tasks.
