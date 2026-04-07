@@ -11,7 +11,7 @@ This skill teaches users where their AI coding spend goes, finds waste in suppor
 
 ## Core rules
 
-- **Privacy first.** All data stays on the user's machine. No server, no uploads, no telemetry. The scripts read local log files, analyze in memory, print to screen. Stress this when onboarding — users worry about their code and conversations being sent somewhere.
+- **Privacy first.** All data stays on the user's machine. No server, no uploads, no telemetry. The scripts read local log files, analyze in memory, print to screen. Mention this early in every flow — scan, compress, explain — not just during onboarding. Users worry about their code and conversations being sent somewhere.
 - Default to the user's language. Prefer the language they are writing in. Use system locale only as a fallback.
 - Use the detected tool name and detected instruction file name in all user-facing text. Never say "Claude Code" if they use Cursor. Never say "CLAUDE.md" if their file is `.cursorrules`.
 - Be honest about capability. If full log analysis is not supported for the detected tool, say so and switch to education + instruction-file optimization. Do not route through a broken scan path.
@@ -112,7 +112,7 @@ Use `waste_descriptions`, `worst_day`, `top3_waste`, and `cache_explanations` fr
 
 **Lesson 1 — "What are you actually paying for?"**
 
-Explain subscription vs actual token usage. Key insight: every message re-reads the entire conversation. Message #50 re-reads all 49 previous messages. The AI spends most of your money re-reading, not thinking. Show their tier if known (Claude $20→~$200 API value, $100→~$1,000, $200→~$4,000).
+Start with a quick privacy note: "Everything I'm about to show you stays on your machine — no data leaves, no servers involved." Then explain subscription vs actual token usage. Key insight: every message re-reads the entire conversation. Message #50 re-reads all 49 previous messages. The AI spends most of your money re-reading, not thinking. Show their tier if known (Claude $20→~$200 API value, $100→~$1,000, $200→~$4,000).
 
 End with: **"Make sense so far? Ask me anything. When you're ready, I'll show you where the money actually goes — it's not where you'd think."** WAIT for response.
 
@@ -171,13 +171,21 @@ python3 SKILL_DIR/scripts/measure.py /path/to/instruction_file
 python3 SKILL_DIR/scripts/strip_markdown.py /path/to/instruction_file /path/to/instruction_file.working
 ```
 
-Four passes:
-1. **Strip markdown** (automatic, lossless) — remove formatting cruft
-2. **Creative compression** (needs approval) — dedup, compress code blocks, trim verbose rationale
-3. **Remove human-only content** (needs approval) — installation guides, coaching, verbose WHY explanations
-4. **Telegram mode** (optional, explicit permission only) — rewrite in shorthand fragments
+Four passes — present each separately, show the diff, and WAIT for user approval before applying. Do not batch all passes into one response:
+1. **Strip markdown** (automatic, lossless) — remove formatting cruft. Show reduction, apply without asking.
+2. **Creative compression** (needs approval) — dedup, compress code blocks, trim verbose rationale. Show each proposed change and wait for approval.
+3. **Remove human-only content** (needs approval) — installation guides, coaching, verbose WHY explanations. Show what would be removed and wait for approval.
+4. **Telegram mode** (optional, explicit permission only) — rewrite in shorthand fragments. Only offer if user asks or if target line count requires it.
 
-Show reduction after each pass. Preserve: trigger patterns, shell commands/paths, migration tables (compress format, keep every row).
+Show reduction after each pass.
+
+**Preservation rules — these are non-negotiable:**
+- Trigger patterns, shell commands, file paths — exact syntax, no abbreviation
+- Migration tables — compress format but keep EVERY row AND every note with behavioral meaning (e.g., "Single-arg compiles but wrong semantics" warns about a subtle bug; "Chrome only" IS the rule)
+- Concurrency annotations (nonisolated, @concurrent, Sendable, actor isolation)
+- Platform/region constraints (e.g., "unavailable China")
+- Decision references (e.g., "DEC-003") — these link to design decisions
+- When in doubt, keep it. Dropping a behavioral rule silently is worse than keeping 10 extra lines.
 
 ### 7. Before/after comparison
 
