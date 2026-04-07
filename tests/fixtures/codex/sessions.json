@@ -1,0 +1,9 @@
+{
+  "sessions": [
+    {
+      "path": "tests/fixtures/codex/session.jsonl",
+      "project": "demo-codex",
+      "date": "2026-04-07"
+    }
+  ]
+}

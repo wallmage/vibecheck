@@ -8,9 +8,9 @@ Every time you send a message, the AI reads the entire conversation again. From 
 
 I ran this on my own sessions. Over 50% of my token spend was waste. Not edge cases — patterns that show up in almost every session.
 
-vibecheck scans your last 14 days of AI coding sessions, shows you where the money went, and adds a paragraph to your instruction file that stops most of the waste. Same work gets done. Half the bill.
+vibecheck analyzes AI coding session logs, shows you where the money went, and adds a paragraph to your instruction file that stops most of the waste. Same work gets done. Lower bill.
 
-Works with all LLMs — Claude, GPT, Gemini, DeepSeek. Works with Claude Code, Cursor, Codex, OpenClaw, Windsurf, and 24 other tools. Runs locally. Your data stays on your machine.
+Works with all major model families — Claude, GPT, Gemini, DeepSeek. Supports 24+ coding tools, with full session analysis now available for Claude Code, Codex, Cursor, OpenClaw, GitHub Copilot / VS Code chat sessions, Windsurf, and TRAE, plus instruction-file optimization across the rest. Runs locally. Your data stays on your machine.
 
 ## Nothing to install
 
@@ -20,7 +20,7 @@ Copy this into whatever AI coding tool you use:
 
 > Install the vibecheck skill from https://github.com/wallmage/vibecheck and run /vibecheck scan
 
-That's the whole setup. Your AI reads the skill file, scans your sessions, and walks you through what it found.
+That's the whole setup. Your AI reads the skill file, checks what kind of analysis your tool supports, and walks you through the result.
 
 If you're on Claude Code CLI:
 ```bash
@@ -37,11 +37,11 @@ A recipe card for your AI. It doesn't modify anything or install anything. It's 
 
 ### Coding tools vs chat tools
 
-**Coding tools** (Claude Code, Cursor, Codex, Windsurf, Cline) run on your machine and can read your session logs. You get a scan with your actual numbers — which sessions cost the most, which patterns burned the most tokens, dollar amounts.
+**Coding tools** run on your machine, so vibecheck can often detect your tool and instruction file automatically. Claude Code, Codex, Cursor, OpenClaw, GitHub Copilot / VS Code chat sessions, Windsurf, and TRAE already get the full session scan. Other supported tools still get instruction-file optimization and cost education while deeper log support rolls out.
 
 **Chat tools** (Cowork, browser-based tools) run in a sandbox and can't see your logs. vibecheck still works two ways:
 
-1. **Skip the scan (still gets you 80%).** vibecheck trims your CLAUDE.md, adds rules that stop the AI from narrating, batches edits, chains commands. No log access needed. These rules alone cut 20-40%.
+1. **Skip the scan (still gets you most of the benefit).** vibecheck trims your instruction file, adds rules that reduce narration and noisy output, and encourages batching where it's safe. No log access needed.
 
 2. **Copy your logs over (5 seconds).** Paste one command in your terminal. It copies 14 days of logs to a folder the sandbox can see. Then you get the full scan.
 
@@ -55,7 +55,7 @@ Your data doesn't leave your machine. There's no server. The code is a handful o
 
 ## Commands
 
-- `/vibecheck scan` — teaches you what tokens are, scans your sessions, applies fixes
+- `/vibecheck scan` — teaches you what tokens are, runs a measured scan when your tool is supported, then applies fixes
 - `/vibecheck explain` — just the lesson, no changes
 - `/vibecheck compress` — shrinks your instruction file 25-50%
 - `/vibecheck monitor` — weekly comparison, flags regressions
@@ -64,7 +64,7 @@ Your data doesn't leave your machine. There's no server. The code is a handful o
 
 Most people don't know what they're paying for. A $20/month Claude subscription covers about $200 in actual API usage. Where does it go?
 
-vibecheck walks you through it with your own data:
+When full analysis is supported, vibecheck walks you through it with your own data:
 1. What tokens are (roughly one word each)
 2. Why the AI re-reads everything every message (this is where most of your money goes)
 3. Your specific waste patterns with dollar amounts
@@ -80,7 +80,7 @@ Just installing the skill makes your AI:
 - Clear long conversations instead of letting them bloat
 - Pipe build output to a file instead of dumping 500 lines into the chat
 
-That's where most of the savings come from. The scan finds the rest.
+That's where most of the savings come from. A measured scan finds the rest when your tool is supported.
 
 ## Before / After
 
@@ -125,9 +125,10 @@ Snapshots saved in `~/.vibecheck/snapshots/`. Persists across reboots.
 
 ## Supported tools
 
-Auto-detects which tool you use. 24 supported:
+Supports 24+ tools today.
 
-Claude Code, Codex, Cursor, Windsurf, Cline, Roo Code, Kilo Code, Aider, Gemini CLI, GitHub Copilot, OpenCode, OpenClaw, Augment, CodeBuddy, WorkBuddy, TRAE, Qoder, Kimi Code, MarsCode, Tongyi Lingma, Baidu Comate, CodeGeeX, DevChat, MiniMax.
+- **Full session scan:** Claude Code, Codex, Cursor, OpenClaw, GitHub Copilot / VS Code chat sessions, Windsurf, TRAE, Qoder, CodeBuddy, WorkBuddy, Google Antigravity
+- **Detection + instruction optimization:** Cline, Roo Code, Kilo Code, Aider, Gemini CLI, OpenCode, Augment, Kimi Code, MarsCode, Tongyi Lingma, Baidu Comate, CodeGeeX, DevChat, MiniMax
 
 All LLMs: Claude (Opus/Sonnet/Haiku), GPT-4o/4.1/o1/o3, Gemini 2.5/2.0, DeepSeek V3/R1.
 

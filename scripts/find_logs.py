@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Cross-platform Claude Code session log finder.
+"""Cross-platform finder for Claude-style JSONL session logs.
 
 Handles sandboxed environments (Cowork, VMs, containers) by checking
 fallback locations and returning platform-specific setup instructions."""
@@ -8,7 +8,7 @@ from pathlib import Path
 from datetime import datetime, timedelta, timezone
 
 def find_claude_dir():
-    """Find ~/.claude/ cross-platform."""
+    """Find the default Claude Code data directory cross-platform."""
     home = Path.home()
     claude_dir = home / ".claude"
     if claude_dir.exists():
@@ -121,6 +121,7 @@ def main():
     days = int(sys.argv[1]) if len(sys.argv) > 1 else 14
 
     # Accept explicit logs dir as second arg: find_logs.py 14 /path/to/logs
+    # The directory should contain Claude-style project subfolders with .jsonl sessions.
     explicit_dir = Path(sys.argv[2]) if len(sys.argv) > 2 else None
 
     projects_dir = None

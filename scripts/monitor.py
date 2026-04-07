@@ -110,7 +110,7 @@ def main():
     alerts = []
     if ps:
         if cs['waste_pct'] > ps['waste_pct'] + 5:
-            alerts.append(f"Waste increased from {ps['waste_pct']:.0f}% to {cs['waste_pct']:.0f}% — review CLAUDE.md rules")
+            alerts.append(f"Waste increased from {ps['waste_pct']:.0f}% to {cs['waste_pct']:.0f}% — review your instruction-file rules")
         if cs['avg_cost'] > ps['avg_cost'] * 1.3:
             alerts.append(f"Avg session cost up {((cs['avg_cost']/ps['avg_cost'])-1)*100:.0f}% — check for scope creep")
         if cs['idle_per_session'] > ps['idle_per_session'] + 3:
@@ -132,7 +132,7 @@ def main():
         'regression': len(alerts) > 0,
     }
     # Write to file for scheduled task consumption
-    out_path = '/tmp/claude_monitor_result.json'
+    out_path = '/tmp/vibecheck_monitor_result.json'
     with open(out_path, 'w') as f:
         json.dump(result, f, indent=2)
 

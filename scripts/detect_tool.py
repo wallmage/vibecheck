@@ -1,6 +1,10 @@
 #!/usr/bin/env python3
-"""Auto-detect which AI coding tool the user has, find their logs.
-Covers 90%+ of vibe coders. Falls back to asking for project folder."""
+"""Auto-detect which AI coding tool the user has and what vibecheck can do with it.
+
+Detection coverage is broad, but full session-cost analysis is intentionally narrower.
+When a tool's logs are not supported by the current analyzer, the caller should switch
+to instruction-file optimization and cost education instead of pretending a scan works.
+"""
 import os, sys, platform, json, glob, subprocess
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
@@ -71,14 +75,14 @@ TOOLS = {
     },
     'windsurf': {
         'name': 'Windsurf (Codeium)',
-        'instruction_files': ['.windsurfrules'],
+        'instruction_files': ['.windsurf/rules', '.windsurfrules'],
         'log_paths': {
-            'Darwin': [f'{HOME}/.codeium/windsurf/cascade/*'],
-            'Linux': [f'{HOME}/.codeium/windsurf/cascade/*'],
-            'Windows': [f'{HOME}/.codeium/windsurf/cascade/*'],
+            'Darwin': [f'{HOME}/.windsurf/transcripts/*.jsonl', f'{HOME}/.codeium/windsurf/cascade/*'],
+            'Linux': [f'{HOME}/.windsurf/transcripts/*.jsonl', f'{HOME}/.codeium/windsurf/cascade/*'],
+            'Windows': [f'{HOME}/.windsurf/transcripts/*.jsonl', f'{HOME}/.codeium/windsurf/cascade/*'],
         },
         'log_format': 'json',
-        'detect_files': [f'{HOME}/.codeium/windsurf'],
+        'detect_files': [f'{HOME}/.windsurf', f'{HOME}/.codeium/windsurf'],
         'config_paths': [],
     },
     'cline': {
@@ -138,18 +142,63 @@ TOOLS = {
         'detect_files': [f'{HOME}/.gemini'],
         'config_paths': [f'{HOME}/.gemini/settings.json'],
     },
+    'antigravity': {
+        'name': 'Google Antigravity',
+        'instruction_files': ['AGENTS.md', 'GEMINI.md'],
+        'log_paths': {
+            'Darwin': [f'{HOME}/.gemini/antigravity/brain/*/*.metadata.json'],
+            'Linux': [f'{HOME}/.gemini/antigravity/brain/*/*.metadata.json'],
+            'Windows': [f'{HOME}/.gemini/antigravity/brain/*/*.metadata.json'],
+        },
+        'log_format': 'markdown',
+        'detect_files': [f'{HOME}/.gemini/antigravity'],
+        'config_paths': [f'{HOME}/.gemini/antigravity/mcp_config.json'],
+    },
     'github_copilot': {
-        'name': 'GitHub Copilot',
+        'name': 'GitHub Copilot / VS Code',
         'instruction_files': ['.github/copilot-instructions.md'],
         'log_paths': {
-            'Darwin': [f'{HOME}/Library/Application Support/Code/User/workspaceStorage/*/chatSessions/*.json'],
-            'Linux': [f'{HOME}/.config/Code/User/globalStorage/github.copilot-chat/*'],
-            'Windows': [f'{APPDATA}/Code/User/globalStorage/github.copilot-chat/*'],
+            'Darwin': [
+                f'{HOME}/Library/Application Support/Code/User/workspaceStorage/*/chatSessions/*.json',
+                f'{HOME}/Library/Application Support/Code/User/workspaceStorage/*/chatSessions/*.jsonl',
+                f'{HOME}/Library/Application Support/Code/User/globalStorage/emptyWindowChatSessions/*.json',
+                f'{HOME}/Library/Application Support/Code/User/globalStorage/emptyWindowChatSessions/*.jsonl',
+                f'{HOME}/Library/Application Support/Code - Insiders/User/workspaceStorage/*/chatSessions/*.json',
+                f'{HOME}/Library/Application Support/Code - Insiders/User/workspaceStorage/*/chatSessions/*.jsonl',
+                f'{HOME}/Library/Application Support/Code - Insiders/User/globalStorage/emptyWindowChatSessions/*.json',
+                f'{HOME}/Library/Application Support/Code - Insiders/User/globalStorage/emptyWindowChatSessions/*.jsonl',
+            ],
+            'Linux': [
+                f'{HOME}/.config/Code/User/workspaceStorage/*/chatSessions/*.json',
+                f'{HOME}/.config/Code/User/workspaceStorage/*/chatSessions/*.jsonl',
+                f'{HOME}/.config/Code/User/globalStorage/emptyWindowChatSessions/*.json',
+                f'{HOME}/.config/Code/User/globalStorage/emptyWindowChatSessions/*.jsonl',
+                f'{HOME}/.config/Code - Insiders/User/workspaceStorage/*/chatSessions/*.json',
+                f'{HOME}/.config/Code - Insiders/User/workspaceStorage/*/chatSessions/*.jsonl',
+                f'{HOME}/.config/Code - Insiders/User/globalStorage/emptyWindowChatSessions/*.json',
+                f'{HOME}/.config/Code - Insiders/User/globalStorage/emptyWindowChatSessions/*.jsonl',
+            ],
+            'Windows': [
+                f'{APPDATA}/Code/User/workspaceStorage/*/chatSessions/*.json',
+                f'{APPDATA}/Code/User/workspaceStorage/*/chatSessions/*.jsonl',
+                f'{APPDATA}/Code/User/globalStorage/emptyWindowChatSessions/*.json',
+                f'{APPDATA}/Code/User/globalStorage/emptyWindowChatSessions/*.jsonl',
+                f'{APPDATA}/Code - Insiders/User/workspaceStorage/*/chatSessions/*.json',
+                f'{APPDATA}/Code - Insiders/User/workspaceStorage/*/chatSessions/*.jsonl',
+                f'{APPDATA}/Code - Insiders/User/globalStorage/emptyWindowChatSessions/*.json',
+                f'{APPDATA}/Code - Insiders/User/globalStorage/emptyWindowChatSessions/*.jsonl',
+            ],
         },
         'log_format': 'json',
         'detect_files': [
             f'{HOME}/Library/Application Support/Code/User/globalStorage/github.copilot-chat' if IS_MAC else '',
+            f'{HOME}/Library/Application Support/Code/User' if IS_MAC else '',
+            f'{HOME}/Library/Application Support/Code - Insiders/User' if IS_MAC else '',
             f'{HOME}/.config/Code/User/globalStorage/github.copilot-chat' if IS_LINUX else '',
+            f'{HOME}/.config/Code/User' if IS_LINUX else '',
+            f'{HOME}/.config/Code - Insiders/User' if IS_LINUX else '',
+            f'{APPDATA}/Code/User' if IS_WIN else '',
+            f'{APPDATA}/Code - Insiders/User' if IS_WIN else '',
         ],
         'config_paths': [],
     },
@@ -205,24 +254,24 @@ TOOLS = {
         'name': 'CodeBuddy (Tencent)',
         'instruction_files': ['CODEBUDDY.md'],
         'log_paths': {
-            'Darwin': [f'{HOME}/.codebuddy/projects/*/*.jsonl'],
-            'Linux': [f'{HOME}/.codebuddy/projects/*/*.jsonl'],
-            'Windows': [f'{HOME}/.codebuddy/projects/*/*.jsonl'],
+            'Darwin': [f'{HOME}/Library/Application Support/CodeBuddy/codebuddy-sessions.vscdb', f'{HOME}/.codebuddy/projects/*/*.jsonl'],
+            'Linux': [f'{HOME}/.config/CodeBuddy/codebuddy-sessions.vscdb', f'{HOME}/.codebuddy/projects/*/*.jsonl'],
+            'Windows': [f'{APPDATA}/CodeBuddy/codebuddy-sessions.vscdb', f'{HOME}/.codebuddy/projects/*/*.jsonl'],
         },
-        'log_format': 'jsonl',
-        'detect_files': [f'{HOME}/.codebuddy'],
+        'log_format': 'sqlite',
+        'detect_files': [f'{HOME}/.codebuddy', f'{HOME}/Library/Application Support/CodeBuddy' if IS_MAC else '', f'{HOME}/.config/CodeBuddy' if IS_LINUX else '', f'{APPDATA}/CodeBuddy' if IS_WIN else ''],
         'config_paths': [],
     },
     'workbuddy': {
         'name': 'WorkBuddy (Tencent)',
         'instruction_files': ['WORKBUDDY.md'],
         'log_paths': {
-            'Darwin': [f'{HOME}/.workbuddy/projects/*/*.jsonl'],
-            'Linux': [f'{HOME}/.workbuddy/projects/*/*.jsonl'],
-            'Windows': [f'{HOME}/.workbuddy/projects/*/*.jsonl'],
+            'Darwin': [f'{HOME}/Library/Application Support/WorkBuddy/codebuddy-sessions.vscdb', f'{HOME}/Library/Application Support/WorkBuddy/User/workspaceStorage/*/state.vscdb'],
+            'Linux': [f'{HOME}/.config/WorkBuddy/codebuddy-sessions.vscdb'],
+            'Windows': [f'{APPDATA}/WorkBuddy/codebuddy-sessions.vscdb'],
         },
-        'log_format': 'jsonl',
-        'detect_files': [f'{HOME}/.workbuddy'],
+        'log_format': 'sqlite',
+        'detect_files': [f'{HOME}/.workbuddy', f'{HOME}/Library/Application Support/WorkBuddy' if IS_MAC else '', f'{HOME}/.config/WorkBuddy' if IS_LINUX else '', f'{APPDATA}/WorkBuddy' if IS_WIN else ''],
         'config_paths': [],
     },
     'trae': {
@@ -354,6 +403,86 @@ TOOLS = {
     },
 }
 
+# Current analyzer support is intentionally strict.
+# The bundled analyzer understands Claude-style JSONL session logs. Other tools may be
+# detectable and may have instruction files worth optimizing, but they should not be
+# routed into the full scan flow unless their log schema is explicitly supported here.
+ANALYSIS_SUPPORT = {
+    'claude_code': {
+        'can_analyze': True,
+        'analysis_mode': 'claude_jsonl',
+        'support_level': 'full',
+        'note': 'Full session-cost analysis is available for Claude Code JSONL logs.',
+    },
+    'codex': {
+        'can_analyze': True,
+        'analysis_mode': 'codex_jsonl',
+        'support_level': 'full',
+        'note': 'Full session-cost analysis is available for Codex session JSONL logs.',
+    },
+    'cursor': {
+        'can_analyze': True,
+        'analysis_mode': 'cursor_sqlite',
+        'support_level': 'full',
+        'note': 'Full session analysis is available for Cursor workspace SQLite data, with token-cost estimation when local token counters are missing.',
+    },
+    'windsurf': {
+        'can_analyze': True,
+        'analysis_mode': 'windsurf_transcript',
+        'support_level': 'full',
+        'note': 'Full session analysis is available for Windsurf transcript JSONL files, with compatibility support for older local cache paths.',
+    },
+    'github_copilot': {
+        'can_analyze': True,
+        'analysis_mode': 'copilot_chat_json',
+        'support_level': 'full',
+        'note': 'Full session analysis is available for local or exported VS Code Copilot chat sessions stored as JSON or JSONL.',
+    },
+    'trae': {
+        'can_analyze': True,
+        'analysis_mode': 'trae_sqlite',
+        'support_level': 'full',
+        'note': 'Full session analysis is available for TRAE workspace SQLite data using the current chat storage keys under ItemTable.',
+    },
+    'qoder': {
+        'can_analyze': True,
+        'analysis_mode': 'qoder_sqlite',
+        'support_level': 'full',
+        'note': 'Full session analysis is available for Qoder workspace SQLite data using broad chat/session extraction from ItemTable and current workspace storage state.',
+    },
+    'antigravity': {
+        'can_analyze': True,
+        'analysis_mode': 'antigravity_brain',
+        'support_level': 'full',
+        'note': 'Full session analysis is available for Antigravity brain artifacts and metadata, using the readable task/plan/walkthrough exports that accompany encrypted raw conversations.',
+    },
+    'codebuddy': {
+        'can_analyze': True,
+        'analysis_mode': 'codebuddy_hybrid',
+        'support_level': 'full',
+        'note': 'Full session analysis is available for CodeBuddy session index SQLite plus runtime logs, with hybrid reconstruction when direct chat payloads are not exposed.',
+    },
+    'workbuddy': {
+        'can_analyze': True,
+        'analysis_mode': 'workbuddy_hybrid',
+        'support_level': 'full',
+        'note': 'Full session analysis is available for WorkBuddy session index SQLite plus runtime logs, with hybrid reconstruction when direct chat payloads are not exposed.',
+    },
+    'openclaw': {
+        'can_analyze': True,
+        'analysis_mode': 'openclaw_jsonl',
+        'support_level': 'full',
+        'note': 'Full session analysis is available for OpenClaw transcript JSONL plus per-agent session metadata, including always-on waste patterns.',
+    },
+}
+
+DEFAULT_SUPPORT = {
+    'can_analyze': False,
+    'analysis_mode': 'instruction_only',
+    'support_level': 'limited',
+    'note': 'Tool detected, but this version of vibecheck does not yet support a reliable session-cost scan for this log format.',
+}
+
 
 def detect_installed_tools():
     """Detect which AI coding tools are installed on this machine."""
@@ -437,25 +566,33 @@ def scan_project_for_tool(project_dir):
     if not os.path.isdir(project_dir):
         return None
 
-    # Check for instruction files
-    result = find_instruction_file(project_dir)
-    if result:
-        return result
-
-    # Check for hidden config dirs
+    candidates = []
     for tool_id, tool in TOOLS.items():
+        matches = []
         for fname in tool['instruction_files']:
-            # Check if it's a directory-based config
             fpath = os.path.join(project_dir, fname)
             if os.path.exists(fpath):
-                return {
-                    'tool': tool_id,
-                    'tool_name': tool['name'],
-                    'file': fpath,
-                    'filename': fname,
-                }
+                matches.append((fname, fpath))
 
-    return None
+        if matches:
+            candidates.append({
+                'tool': tool_id,
+                'tool_name': tool['name'],
+                'matches': matches,
+                'score': len(matches),
+            })
+
+    if not candidates:
+        return None
+
+    best = sorted(candidates, key=lambda c: (-c['score'], c['tool']))[0]
+    filename, fpath = best['matches'][0]
+    return {
+        'tool': best['tool'],
+        'tool_name': best['tool_name'],
+        'file': fpath,
+        'filename': filename,
+    }
 
 
 def get_log_paths(tool_id):
@@ -498,6 +635,11 @@ def detect_remote_session():
     }
 
 
+def get_support(tool_id):
+    """Return the supported vibecheck capability level for a tool."""
+    return ANALYSIS_SUPPORT.get(tool_id, DEFAULT_SUPPORT).copy()
+
+
 def main():
     project_dir = sys.argv[1] if len(sys.argv) > 1 else None
 
@@ -527,6 +669,9 @@ def main():
         'instruction_file': None,
         'needs_manual_input': False,
         'is_always_on': False,
+        'supports_instruction_optimization': False,
+        'analysis_mode': DEFAULT_SUPPORT['analysis_mode'],
+        'support_level': DEFAULT_SUPPORT['support_level'],
     }
 
     # Determine primary tool
@@ -545,24 +690,17 @@ def main():
 
     if result['primary_tool']:
         tool = TOOLS[result['primary_tool']]
+        support = get_support(result['primary_tool'])
         result['primary_log_format'] = tool['log_format']
         logs = get_log_paths(result['primary_tool'])
         result['log_count'] = len(logs)
         result['primary_tool_name'] = tool['name']
         result['is_always_on'] = tool.get('always_on', False)
-
-        # Check if we can actually parse their logs
-        if tool['log_format'] in ('jsonl', 'json'):
-            result['can_analyze'] = True
-        elif tool['log_format'] == 'sqlite':
-            result['can_analyze'] = True
-            result['note'] = 'SQLite format — will query database directly'
-        elif tool['log_format'] == 'markdown':
-            result['can_analyze'] = False
-            result['note'] = 'Markdown chat logs — limited analysis (no token counts)'
-        else:
-            result['can_analyze'] = False
-            result['note'] = 'Unknown log format — may need manual inspection'
+        result['supports_instruction_optimization'] = bool(tool['instruction_files'])
+        result['can_analyze'] = support['can_analyze']
+        result['analysis_mode'] = support['analysis_mode']
+        result['support_level'] = support['support_level']
+        result['note'] = support['note']
 
     print(json.dumps(result, indent=2))
 

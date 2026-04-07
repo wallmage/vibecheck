@@ -3,50 +3,43 @@
 import json, sys, os
 from collections import defaultdict
 from pathlib import Path
-
-# Pricing per MTok: {input, output, cache_read_mult, cache_create_mult}
-# cache_read = input * cache_read_mult, cache_create = input * cache_create_mult
-PRICING = {
-    # Claude models
-    'sonnet': {'input': 3, 'output': 15, 'cache_read_mult': 0.1, 'cache_create_mult': 1.25},
-    'opus': {'input': 5, 'output': 25, 'cache_read_mult': 0.1, 'cache_create_mult': 1.25},
-    'haiku': {'input': 0.80, 'output': 4, 'cache_read_mult': 0.1, 'cache_create_mult': 1.25},
-    # OpenAI models (no prompt caching in same sense — treat cache_read as input)
-    'gpt-4o': {'input': 2.50, 'output': 10, 'cache_read_mult': 0.5, 'cache_create_mult': 1.0},
-    'gpt-4o-mini': {'input': 0.15, 'output': 0.60, 'cache_read_mult': 0.5, 'cache_create_mult': 1.0},
-    'gpt-4.1': {'input': 2.00, 'output': 8, 'cache_read_mult': 0.5, 'cache_create_mult': 1.0},
-    'gpt-4.1-mini': {'input': 0.40, 'output': 1.60, 'cache_read_mult': 0.5, 'cache_create_mult': 1.0},
-    'o1': {'input': 15, 'output': 60, 'cache_read_mult': 0.5, 'cache_create_mult': 1.0},
-    'o3': {'input': 10, 'output': 40, 'cache_read_mult': 0.5, 'cache_create_mult': 1.0},
-    'o3-mini': {'input': 1.10, 'output': 4.40, 'cache_read_mult': 0.5, 'cache_create_mult': 1.0},
-    'o4-mini': {'input': 1.10, 'output': 4.40, 'cache_read_mult': 0.5, 'cache_create_mult': 1.0},
-    # Google models
-    'gemini-2.5-pro': {'input': 1.25, 'output': 10, 'cache_read_mult': 0.25, 'cache_create_mult': 1.0},
-    'gemini-2.5-flash': {'input': 0.15, 'output': 0.60, 'cache_read_mult': 0.25, 'cache_create_mult': 1.0},
-    'gemini-2.0-flash': {'input': 0.10, 'output': 0.40, 'cache_read_mult': 0.25, 'cache_create_mult': 1.0},
-    # DeepSeek
-    'deepseek-v3': {'input': 0.27, 'output': 1.10, 'cache_read_mult': 0.1, 'cache_create_mult': 1.0},
-    'deepseek-r1': {'input': 0.55, 'output': 2.19, 'cache_read_mult': 0.14, 'cache_create_mult': 1.0},
-}
+from model_pricing import MODEL_PATTERNS, PRICING, get_billing_mode, get_pricing, get_pricing_metadata
 
 def calc_cost(usage, model='sonnet'):
-    p = PRICING.get(model, PRICING['sonnet'])
     inp = usage.get('input_tokens', 0)
     out = usage.get('output_tokens', 0)
     cr = usage.get('cache_read_input_tokens', 0)
     cc = usage.get('cache_creation_input_tokens', 0)
-    return (inp * p['input'] + cr * p['input'] * p['cache_read_mult'] +
-            cc * p['input'] * p['cache_create_mult'] + out * p['output']) / 1_000_000
+    p = get_pricing(model, total_input_tokens=inp + cr + cc)
+    return (
+        inp * p['input']
+        + cr * p.get('cache_read_price', p['input'] * p['cache_read_mult'])
+        + cc * p.get('cache_write_price', p['input'] * p['cache_create_mult'])
+        + out * p['output']
+    ) / 1_000_000
 
-MODEL_PATTERNS = [
-    ('opus', 'opus'), ('sonnet', 'sonnet'), ('haiku', 'haiku'),
-    ('gpt-4o-mini', 'gpt-4o-mini'), ('gpt-4o', 'gpt-4o'),
-    ('gpt-4.1-mini', 'gpt-4.1-mini'), ('gpt-4.1', 'gpt-4.1'),
-    ('o4-mini', 'o4-mini'), ('o3-mini', 'o3-mini'), ('o3', 'o3'), ('o1', 'o1'),
-    ('gemini-2.5-pro', 'gemini-2.5-pro'), ('gemini-2.5-flash', 'gemini-2.5-flash'),
-    ('gemini-2.0-flash', 'gemini-2.0-flash'),
-    ('deepseek-v3', 'deepseek-v3'), ('deepseek-r1', 'deepseek-r1'),
-]
+
+def build_analysis_confidence(results):
+    if not results:
+        return {
+            'label': 'estimated',
+            'score': 0.4,
+            'reason': 'No parsed sessions.',
+        }
+
+    models = {r.get('model', 'sonnet') for r in results}
+    billing_modes = {get_billing_mode(model) for model in models}
+    if billing_modes == {'full_billing'}:
+        return {
+            'label': 'measured',
+            'score': 0.94,
+            'reason': 'Claude JSONL logs provide first-party token usage, and all detected primary models are in the full-billing frontier set.',
+        }
+    return {
+        'label': 'partial',
+        'score': 0.78,
+        'reason': 'Claude JSONL logs provide first-party token usage, but some detected models are outside the current full-billing frontier set so provider-specific surcharges stay estimate-only.',
+    }
 
 def detect_model(records):
     for r in records:
@@ -382,9 +375,12 @@ def analyze_session(filepath):
                         verbose_output_chars += len(result_content)
     # Each verbose output adds to cache_create AND every future cache_read
     verbose_output_tokens = verbose_output_chars // 4
-    p = PRICING.get(model, PRICING['sonnet'])
-    verbose_cost = round(verbose_output_tokens * p['input'] * p['cache_create_mult'] / 1_000_000
-                         + verbose_output_tokens * total_turns * p['input'] * p['cache_read_mult'] / 1_000_000, 4)
+    p = get_pricing(model, total_input_tokens=verbose_output_tokens)
+    verbose_cost = round(
+        verbose_output_tokens * p.get('cache_write_price', p['input'] * p['cache_create_mult']) / 1_000_000
+        + verbose_output_tokens * total_turns * p.get('cache_read_price', p['input'] * p['cache_read_mult']) / 1_000_000,
+        4,
+    )
 
     # 15. Codebase wandering (excessive Read/Grep/Glob exploration without Edits)
     # Detect: sequences of 5+ consecutive read/search turns with no Edit/Write
@@ -632,14 +628,16 @@ def main():
         },
         'waste_breakdown': {},
         'sessions': results,
+        'analysis_confidence': build_analysis_confidence(results),
     }
+    output['pricing_metadata'] = get_pricing_metadata(next(iter(output.get('model_mix', {})), results[0]['model']))
 
     for key in sorted(waste_totals, key=lambda k: -waste_totals[k]['cost']):
         w = waste_totals[key]
         output['waste_breakdown'][key] = {
             'total_cost': round(w['cost'], 2),
             'per_session': round(w['cost'] / n, 3),
-            'percentage_of_waste': round(w['cost'] / total_waste * 100, 1) if total_waste > 0 else 0,
+            'percentage_of_waste': round(w['cost'] / total_waste_raw * 100, 1) if total_waste_raw > 0 else 0,
             'description': w['description'],
         }
 
@@ -741,6 +739,7 @@ def main():
         'avg_per_session': round(total_sleep_polls / n, 1),
         'estimated_cost': round(total_sleep_polls * 0.03, 2),
     }
+    output['pricing_metadata'] = get_pricing_metadata(next(iter(output['model_mix']), results[0]['model']))
 
     print(json.dumps(output, indent=2))
 

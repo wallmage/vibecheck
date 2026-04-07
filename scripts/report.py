@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate human-readable cost optimization report from analysis JSON."""
+"""Generate a human-readable cost optimization report from analysis JSON."""
 import json, sys, os, subprocess
 from pathlib import Path
 
@@ -8,19 +8,31 @@ def fmt(amount):
 
 def main():
     if len(sys.argv) < 2:
-        print("Usage: report.py <analysis.json> [claude_md_path]")
+        print("Usage: report.py <analysis.json> [instruction_file_path]")
         sys.exit(1)
 
-    with open(sys.argv[1]) as f:
+    analysis_path = sys.argv[1]
+    if not os.path.exists(analysis_path):
+        print(f"Error: analysis file not found: {analysis_path}", file=sys.stderr)
+        sys.exit(1)
+
+    with open(analysis_path) as f:
         data = json.load(f)
 
-    claude_md_path = sys.argv[2] if len(sys.argv) > 2 else None
+    instruction_file_path = sys.argv[2] if len(sys.argv) > 2 else None
+    instruction_file_name = Path(instruction_file_path).name if instruction_file_path else "instruction file"
 
     s = data['summary']
     w = data['waste_breakdown']
+    analysis_confidence = data.get('analysis_confidence', {
+        'label': 'estimated',
+        'score': 0.5,
+        'reason': 'Confidence metadata was not included in this analysis.',
+    })
+    pricing_metadata = data.get('pricing_metadata', {})
 
     print("=" * 70)
-    print("CLAUDE CODE COST OPTIMIZATION REPORT")
+    print("VIBECHECK COST OPTIMIZATION REPORT")
     print("=" * 70)
     print()
     print(f"  Period:              {s['date_range']}")
@@ -29,6 +41,12 @@ def main():
     print(f"  Avg cost/session:    ${s['avg_cost_per_session']:.2f}")
     print(f"  Avg turns/session:   {s['avg_turns_per_session']:.1f}")
     print(f"  Avg cost/turn:       ${s['avg_cost_per_turn']:.4f}")
+    print(f"  Confidence:          {analysis_confidence['label']} ({analysis_confidence.get('score', 0):.2f})")
+    if pricing_metadata:
+        print(f"  Pricing registry:    {pricing_metadata.get('registry_label', 'unknown')}")
+        print(f"  Billing mode:        {pricing_metadata.get('billing_mode', 'token_only_estimate')}")
+    print()
+    print(f"  Confidence note:     {analysis_confidence['reason']}")
     print()
 
     # Model mix
@@ -42,6 +60,21 @@ def main():
         print(f"  {'-'*20} {'-'*8} {'-'*7} {'-'*9} {'-'*7} {'-'*10}")
         for model, info in model_mix.items():
             print(f"  {model:<20} {info['sessions']:>8} {info['pct_sessions']:>6.1f}% ${info['total_cost']:>8.2f} {info['pct_cost']:>6.1f}% ${info['avg_cost']:>9.2f}")
+        print()
+
+    if pricing_metadata:
+        print("-" * 70)
+        print("PRICING BASIS")
+        print("-" * 70)
+        print()
+        print(f"  Canonical model:     {pricing_metadata.get('canonical_model', 'unknown')}")
+        print(f"  Provider:            {pricing_metadata.get('provider', 'unknown')}")
+        print(f"  Registry version:    {pricing_metadata.get('registry_version', 'unknown')}")
+        print(f"  Billing mode:        {pricing_metadata.get('billing_mode', 'token_only_estimate')}")
+        if pricing_metadata.get('billing_mode') == 'full_billing':
+            print("  Interpretation:      Frontier model with provider-specific billing rules enabled.")
+        else:
+            print("  Interpretation:      Token/cache pricing is modeled, but tool surcharges remain estimate-only.")
         print()
 
     # Per-project breakdown
@@ -109,17 +142,17 @@ def main():
     review_fixes = [f for f in fixes if f[2] == "REVIEW"]
 
     fix_labels = {
-        'idle_narration': 'Add: "No turn without tool call. No narration."',
+        'idle_narration': 'Add guidance to avoid status-only replies when the next action can happen immediately.',
         'chainable_bash': 'Add: "Chain Bash with && instead of separate turns."',
         'toolsearch': 'Add: "Call MCP tools directly, skip ToolSearch."',
-        'duplicate_reads': 'Add: "File re-reads banned."',
+        'duplicate_reads': 'Add guidance to avoid re-reading files unless they changed or accuracy depends on it.',
         'failed_tools': 'Review common failures and add guardrails.',
         'unbatched_edits': 'Add: "Batch multiple Edits into one turn."',
         'sleep_poll_loops': 'Add: "Use --wait flags or run_in_background, never sleep+poll."',
         'git_ceremony': 'Add: "Chain git commands with &&."',
-        'context_rot': 'Add: "Use /clear between tasks. Start fresh after ~15 turns."',
+        'context_rot': 'Add guidance to start a fresh thread between unrelated tasks or after long debugging loops.',
         'verbose_output': 'Add: "Pipe verbose commands to /tmp/. Use --quiet flags. Tail last 50 lines."',
-        'codebase_wandering': 'Add: "Max 3 reads before acting. Use CLAUDE.md project map to skip exploration."',
+        'codebase_wandering': 'Add guidance to prefer focused exploration and use the project instruction file map before broad searching.',
         'pingpong_debugging': 'Add: "After 2 failed fixes, stop → read error → think → single fix."',
         'heartbeat_idle': 'Reduce heartbeat frequency. Check every 30min, not every 5min.',
         'workspace_bloat': 'Compress SOUL.md/AGENTS.md. Remove verbose personality text AI doesn\'t need.',
@@ -241,14 +274,14 @@ def main():
         print("  with run_in_background:true and let the system notify on completion.")
         print()
 
-    # CLAUDE.md scan
+    # Instruction file scan
     print("-" * 70)
-    print("CLAUDE.MD ANALYSIS")
+    print("INSTRUCTION FILE ANALYSIS")
     print("-" * 70)
     print()
 
-    if claude_md_path and os.path.exists(claude_md_path):
-        with open(claude_md_path) as f:
+    if instruction_file_path and os.path.exists(instruction_file_path):
+        with open(instruction_file_path) as f:
             content = f.read()
         chars = len(content)
         words = len(content.split())
@@ -270,19 +303,19 @@ def main():
         projected_tax = projected_tokens * avg_turns * 0.3 / 1_000_000
         tax_savings = tax_per_session - projected_tax
 
-        print(f"  File: {claude_md_path}")
+        print(f"  File: {instruction_file_path}")
         print(f"  Size: {words:,} words, ~{tokens_est:,} tokens")
         print(f"  Context tax: ${tax_per_session:.3f}/session (re-read on every turn)")
         print(f"  Estimated compression: ~{compression_est}%")
         print(f"  Projected: ~{projected_tokens:,} tokens → ${projected_tax:.3f}/session")
         print(f"  Savings: ${tax_savings:.3f}/session")
         print()
-        print(f"  Your CLAUDE.md can be trimmed by ~{compression_est}%, which translates")
+        print(f"  Your {instruction_file_name} can likely be trimmed by ~{compression_est}%, which translates")
         print(f"  to ${tax_savings:.3f} per session cost reduction.")
-        print(f"  Run /cost-optimizer compress to proceed (approval required for each change).")
+        print(f"  Run /vibecheck compress to proceed (approval required for each change).")
     else:
-        print("  No CLAUDE.md path provided or file not found.")
-        print("  Pass CLAUDE.md path as second argument for compression analysis.")
+        print("  No instruction file path provided or file not found.")
+        print("  Pass the instruction file path as the second argument for compression analysis.")
     print()
 
 if __name__ == "__main__":

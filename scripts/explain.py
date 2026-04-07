@@ -3,6 +3,7 @@
 Output: JSON lesson plan with real numbers from user's sessions."""
 import json, sys, os, locale, subprocess
 from collections import defaultdict
+from model_pricing import PROVIDER_TOOL_PRICING, get_pricing, get_pricing_metadata
 
 # Subscription tiers and their actual API spending power
 SUBSCRIPTION_TIERS = {
@@ -23,7 +24,8 @@ def detect_system_language():
     """Detect system language for default output."""
     # Try locale
     try:
-        lang = locale.getdefaultlocale()[0] or ''
+        loc = locale.getlocale()[0]
+        lang = loc or ''
     except Exception:
         lang = ''
 
@@ -54,7 +56,8 @@ def detect_system_language():
             pass
 
     if lang:
-        return lang[:2].lower()
+        code = lang[:2].lower()
+        return 'en' if code == 'c' else code
     return 'en'
 
 def find_most_expensive_day(sessions):
@@ -77,11 +80,10 @@ def find_most_expensive_day(sessions):
 
     # Estimate cost breakdown by token type
     model = day_sessions[0].get('model', 'sonnet')
-    from analyze_sessions import PRICING
-    p = PRICING.get(model, PRICING['sonnet'])
+    p = get_pricing(model, total_input_tokens=cache_read + cache_create)
 
-    cr_cost = cache_read * p['input'] * p['cache_read_mult'] / 1_000_000
-    cc_cost = cache_create * p['input'] * p['cache_create_mult'] / 1_000_000
+    cr_cost = cache_read * p.get('cache_read_price', p['input'] * p['cache_read_mult']) / 1_000_000
+    cc_cost = cache_create * p.get('cache_write_price', p['input'] * p['cache_create_mult']) / 1_000_000
     out_cost = output_tokens * p['output'] / 1_000_000
     inp_cost = total - cr_cost - cc_cost - out_cost  # remainder = fresh input
 
@@ -121,22 +123,20 @@ def build_lesson_plan(data):
     language = detect_system_language()
     worst_day = find_most_expensive_day(sessions)
     top3_waste = top_waste_items(sessions)
+    analysis_confidence = data.get('analysis_confidence', {
+        'label': 'estimated',
+        'score': 0.5,
+        'reason': 'This analyzer did not report a confidence level, so treat totals as estimate-weighted.',
+    })
 
     # Detect primary model family
     model_mix = data.get('model_mix', {})
     primary_model = list(model_mix.keys())[0] if model_mix else 'sonnet'
 
     # Determine provider
-    if primary_model in ('sonnet', 'opus', 'haiku'):
-        provider = 'claude'
-    elif primary_model.startswith('gpt') or primary_model.startswith('o1') or primary_model.startswith('o3') or primary_model.startswith('o4'):
-        provider = 'openai'
-    elif primary_model.startswith('gemini'):
-        provider = 'google'
-    elif primary_model.startswith('deepseek'):
-        provider = 'deepseek'
-    else:
-        provider = 'unknown'
+    pricing = get_pricing(primary_model)
+    provider = pricing.get('provider', 'unknown')
+    pricing_metadata = data.get('pricing_metadata', get_pricing_metadata(primary_model))
 
     # Calculate daily/monthly rates
     n_days = 14
@@ -144,12 +144,9 @@ def build_lesson_plan(data):
     monthly_cost = daily_cost * 30
     daily_sessions = summary['sessions'] / n_days
 
-    from analyze_sessions import PRICING
-    pricing = PRICING.get(primary_model, PRICING['sonnet'])
-
     # Provider-specific cache explanation
     cache_explanations = {
-        'claude': {
+        'anthropic': {
             'mechanism': 'Prompt Caching with cache_read (0.1x input) and cache_create (1.25x input)',
             'key_insight': 'Cache reads are cheap (10% of input price) but happen EVERY turn. Cache creates cost 25% MORE than fresh input — first time content enters context is expensive.',
             'analogy': 'Like a copy shop: first copy costs extra (cache_create), but re-prints are 90% off (cache_read). Problem: you re-print the WHOLE book every turn.',
@@ -159,10 +156,35 @@ def build_lesson_plan(data):
             'key_insight': 'GPT caches repeated prompt prefixes at 50% off. No creation surcharge. Simpler than Claude pricing but still adds up with long conversations.',
             'analogy': 'Like a subscription discount: repeat customers get 50% off. But you still pay for the full conversation every turn.',
         },
+        'openai_gpt5': {
+            'mechanism': 'Prompt Caching with deeply discounted cached input on repeated prefixes',
+            'key_insight': 'GPT-5 family models discount cached input heavily, so re-reading repeated prefixes is cheaper than fresh input. But long sessions still get expensive because the model keeps processing a large prompt over and over.',
+            'analogy': 'Like a copy shop that gives a steep discount on reprints, but you still pay every time you reprint the whole binder.',
+        },
         'google': {
             'mechanism': 'Context Caching with 25% cache read cost + per-hour storage fee',
             'key_insight': 'Gemini charges 25% of input price for cached reads, plus a small hourly fee to keep the cache alive. Good for long-running sessions.',
             'analogy': 'Like a storage locker: cheap to access (25% off), but you pay rent by the hour to keep it.',
+        },
+        'qwen': {
+            'mechanism': 'Implicit and explicit context caching with billed cache hits and writes',
+            'key_insight': 'Qwen cache hits are discounted, but not free. Repeated long prompts still cost real money, and explicit-vs-implicit cache mode is not always visible in current logs.',
+            'analogy': 'Like a warehouse with discounted reorders: repeats are cheaper, but every pallet you pull still has a price tag.',
+        },
+        'minimax': {
+            'mechanism': 'Prompt caching with distinct read and write prices',
+            'key_insight': 'MiniMax publishes separate cache read and cache write rates, so the first time a long prompt is stored can cost more than later hits.',
+            'analogy': 'Like paying to archive a box once, then paying a smaller fee each time you retrieve it.',
+        },
+        'z_ai': {
+            'mechanism': 'Context caching plus optional paid web search tools',
+            'key_insight': 'GLM models can keep repeated context cheaper than fresh input, but search-driven agent runs can add direct tool fees on top of token charges.',
+            'analogy': 'Like a consultant who discounts repeat briefings but still bills separately when they have to do outside research.',
+        },
+        'moonshot': {
+            'mechanism': 'Cached prompt hits plus optional per-call web search charges',
+            'key_insight': 'Kimi cache hits are cheaper than fresh input, but search-heavy runs can add both search fees and extra grounded tokens.',
+            'analogy': 'Like a researcher who gives you a repeat-client discount, but still charges each time they run out to the library.',
         },
         'deepseek': {
             'mechanism': 'Cache read at 10-14% of input price, no creation surcharge',
@@ -251,17 +273,24 @@ def build_lesson_plan(data):
         },
     }
 
+    if primary_model.startswith('gpt-5'):
+        cache_explanation = cache_explanations['openai_gpt5']
+    else:
+        cache_explanation = cache_explanations.get(provider, cache_explanations['anthropic'])
+
     return {
         'language': language,
         'provider': provider,
         'primary_model': primary_model,
+        'analysis_confidence': analysis_confidence,
+        'pricing_registry': pricing_metadata,
         'pricing': {
             'input_per_mtok': pricing['input'],
             'output_per_mtok': pricing['output'],
             'cache_read_mult': pricing['cache_read_mult'],
             'cache_create_mult': pricing['cache_create_mult'],
         },
-        'subscription_tiers': SUBSCRIPTION_TIERS.get(provider, {}),
+        'subscription_tiers': SUBSCRIPTION_TIERS.get('claude' if provider == 'anthropic' else provider, {}),
         'usage_summary': {
             'total_sessions': summary['sessions'],
             'total_cost': summary['total_cost'],
@@ -279,7 +308,8 @@ def build_lesson_plan(data):
             'per_session': summary['waste_per_session'],
         },
         'model_mix': model_mix,
-        'cache_explanation': cache_explanations.get(provider, cache_explanations['claude']),
+        'cache_explanation': cache_explanation,
+        'tool_pricing': PROVIDER_TOOL_PRICING.get(provider, {}),
         'waste_descriptions': waste_descriptions,
     }
 
