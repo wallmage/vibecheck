@@ -39,17 +39,30 @@ Works from iPad/mobile via SSH (Moshi, Termius, Blink, etc.) — logs are on the
 
 ## Install
 
-```bash
-# One command. Works with Claude Code.
-claude install-skill https://github.com/anthropics/vibecheck
+### Claude Code (CLI) — recommended
 
-# Then run it
+```bash
+claude install-skill https://github.com/wallmage/vibecheck
+```
+
+Then in any conversation:
+```
 /vibecheck scan
 ```
 
-Using a different AI coding tool? Tell your AI:
+This gives you full analysis with your real session data — the CLI can read your logs directly.
 
-> Install the vibecheck skill from https://github.com/anthropics/vibecheck and run /vibecheck scan
+### Claude Desktop / Cowork
+
+Same install command, but Cowork runs in a sandbox that can't access `~/.claude/` (hidden directory where logs live). vibecheck handles this gracefully — it'll teach you the concepts using industry averages instead of your personal data. Still useful, just not personalized.
+
+For the full data-driven experience, run `/vibecheck scan` from the CLI.
+
+### Any other AI coding tool
+
+Tell your AI:
+
+> Install the vibecheck skill from https://github.com/wallmage/vibecheck and run /vibecheck scan
 
 It works. The AI reads the SKILL.md and knows what to do.
 
