@@ -1,61 +1,126 @@
 # Waste Patterns
 
-Use these analogies when explaining spend to non-technical users.
+Use these when explaining spend to non-technical users. Each pattern has a plain-language description, an analogy, and a teaching script.
 
-## Core patterns
+## The 15 Patterns
 
-### Idle narration
+### Tier 1 — The Big 3 (70-80% of waste)
+
+#### 1. Idle narration (30-40%)
 
 The AI says it is about to act, then acts in the next turn. The narration turn added cost without changing the repo.
 
-Analogy: a mechanic announcing "now I'll open the hood" before opening the hood.
+**Analogy:** A mechanic announcing "now I'll open the hood" before opening the hood.
 
-### Context rot
+**Teaching script:** "The AI said 'OK, now I'll fix that for you' — then actually fixed it in the NEXT message. That 'OK now I'll' message did nothing but cost you money."
 
-Long sessions become expensive because every later turn re-reads more old context.
+#### 2. Context rot (15-25%)
 
-Analogy: a meeting where everyone re-reads all previous notes before speaking.
+Long sessions become expensive because every later turn re-reads more old context. Sessions over 40 turns cost 3-5x what shorter sessions cost per turn.
 
-### Verbose output
+**Analogy:** A meeting where everyone re-reads all previous meeting notes before speaking.
 
-Large command output enters the conversation and gets re-read on future turns.
+**Teaching script:** "Your conversation went on for 60+ messages without starting fresh. Each new message got more expensive because the AI re-read all 59 previous messages."
 
-Analogy: carrying a 500-page report in your backpack all day.
-
-### Codebase wandering
-
-The agent explores many files before taking action.
-
-Analogy: opening every drawer in an office to find one stapler.
-
-### Ping-pong debugging
+#### 3. Ping-pong debugging (10-20%)
 
 Fix, break, retry loops compound cost because each attempt carries the whole failed history forward.
 
-Analogy: fixing one leak, causing another, then charging for a full inspection each time.
+**Analogy:** Fixing one leak, causing another, then charging for a full inspection each time.
 
-### Unchained commands
+**Teaching script:** "The AI tried to fix something, broke it differently, tried again, broke it again... each attempt re-read the entire conversation including all the failed attempts."
+
+### Tier 2 — The Mechanics (15-20%)
+
+#### 4. Verbose tool output (5-10%)
+
+Large command output enters the conversation and gets re-read on future turns.
+
+**Analogy:** Carrying a 500-page report in your backpack all day.
+
+**Teaching script:** "The AI ran a command that spit out 500 lines of technical output. That output stayed in the conversation and got re-read on EVERY future message."
+
+#### 5. Unchained commands (5-10%)
 
 Independent shell commands are run in separate turns instead of one combined action.
 
-Analogy: making two trips to the store instead of carrying both bags once.
+**Analogy:** Making two trips to the grocery store instead of carrying both bags once.
 
-### Unbatched edits
+**Teaching script:** "The AI ran one command, waited for your response, then ran another. It could have run both at once."
+
+#### 6. Codebase wandering (5-10%)
+
+The agent explores many files before taking action. 5+ consecutive read/search turns before any edit.
+
+**Analogy:** Opening every drawer in an office to find one stapler.
+
+**Teaching script:** "The AI didn't know where things were, so it opened file after file looking around — 8 files before actually doing anything."
+
+#### 7. Unbatched edits (3-5%)
 
 The agent edits multiple files in separate turns when one grouped turn would do.
 
-Analogy: a tailor making one stitch, putting down the needle, then picking it up again.
+**Analogy:** A tailor making one stitch, putting down the needle, then picking it up again.
 
-## Always-on patterns
+**Teaching script:** "The AI edited three different files in three separate messages instead of all at once."
 
-### Idle heartbeats
+### Tier 3 — The Tail (5-10%)
 
-An always-on agent wakes up, rereads its memory, and finds nothing to do.
+#### 8. File re-reads (2-4%)
 
-### Workspace file bloat
+Same file read 2+ times per session. Content is already in context after the first read.
 
-Large personality and rules files are reread on every wake-up.
+#### 9. Sleep/poll loops (2-4%)
 
-### Memory accumulation
+Waiting with sleep+check instead of using --wait flags or run_in_background.
 
-The session history grows without pruning, so each new wake-up gets more expensive.
+#### 10. Failed retries (2-4%)
+
+Broken command retried without fixing the underlying issue.
+
+#### 11. Schema lookups (1-3%)
+
+Looking up tool schemas the AI already knows.
+
+#### 12. Git ceremony (1-2%)
+
+Consecutive git-only turns that could be chained with `&&`.
+
+### Tier 4 — Always-On Agents (OpenClaw, etc.)
+
+#### 13. Idle heartbeats (20-40% of always-on cost)
+
+Agent wakes up every 5 minutes, re-reads SOUL.md + full memory, finds nothing to do. A no-op heartbeat costs $0.01-0.10.
+
+#### 14. Workspace file bloat (10-20% of always-on cost)
+
+SOUL.md + AGENTS.md + USER.md injected into every wake-up. Typical setup = 35K tokens re-read per message.
+
+#### 15. Memory accumulation (10-15% of always-on cost)
+
+Session history grows without pruning. After 100+ messages, every new message re-reads everything.
+
+## Subscription Tier Reference
+
+Use these when explaining "subscription vs reality" in Lesson 1:
+
+| Provider | Tier | Monthly | Approximate API Value |
+|---|---|---|---|
+| Claude | Pro | $20 | ~$200 |
+| Claude | 5x | $100 | ~$1,000 |
+| Claude | Max | $200 | ~$4,000 |
+| OpenAI | Plus | $20 | ~$100 |
+| OpenAI | Pro | $200 | ~$3,000 |
+| Cursor | Pro | $20 | ~200 premium requests |
+
+If the tier is unknown, say "Your subscription covers a certain amount of AI usage per month."
+
+## What Tokens Are
+
+Use this when explaining in Lesson 1:
+"A token is roughly one word. This sentence is about 12 tokens. Every time you send a message, the AI reads ALL your previous messages (costs tokens) and writes a response (costs more tokens). The reading part is cheap per-word, but the AI re-reads EVERYTHING every single time."
+
+## The Punchline
+
+Use at the end of Lesson 2:
+"The AI spends most of your money RE-READING, not THINKING. The cost of one unnecessary message isn't just that message — it's the cost of re-reading everything that came before it. Message #50 in a conversation costs roughly 50x what message #1 costs."

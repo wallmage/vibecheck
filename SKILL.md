@@ -1,6 +1,6 @@
 ---
 name: vibecheck
-description: Universal AI coding cost optimizer. Use when the user asks to run /vibecheck, reduce token spend, analyze AI coding session waste, compress instruction files like CLAUDE.md or AGENTS.md, or explain where AI coding costs come from across tools such as Claude Code, Codex, Cursor, Windsurf, Cline, Gemini CLI, and OpenClaw.
+description: "Universal AI coding cost optimizer. Trigger when the user says /vibecheck, asks about token spend, wants to reduce AI coding costs, says their AI bill is too high, asks why AI is expensive, wants to compress CLAUDE.md or AGENTS.md or any instruction file, asks about session waste or idle narration or context rot, or mentions optimizing any AI coding tool (Claude Code, Codex, Cursor, Windsurf, Cline, OpenClaw, Copilot, TRAE, Qoder, Gemini CLI, Aider, etc.). Also trigger if the user pastes API usage data or asks how token pricing works."
 ---
 
 # Vibecheck
@@ -11,380 +11,147 @@ This skill teaches users where their AI coding spend goes, finds waste in suppor
 
 ## Core rules
 
-- Default to the user's language. Prefer the language they are writing in right now. Use system locale only as a fallback.
-- Use the detected tool name and detected instruction file name in all user-facing text.
-- Be honest about capability. If full log analysis is not supported for the detected tool, say so plainly and switch to education + instruction-file optimization instead of implying a broken scan.
-- Treat this like a cost-and-behavior optimization skill, not a generic repo edit. Show changes before applying them when editing a user's instruction file.
+- **Privacy first.** All data stays on the user's machine. No server, no uploads, no telemetry. The scripts read local log files, analyze in memory, print to screen. Stress this when onboarding — users worry about their code and conversations being sent somewhere.
+- Default to the user's language. Prefer the language they are writing in. Use system locale only as a fallback.
+- Use the detected tool name and detected instruction file name in all user-facing text. Never say "Claude Code" if they use Cursor. Never say "CLAUDE.md" if their file is `.cursorrules`.
+- Be honest about capability. If full log analysis is not supported for the detected tool, say so and switch to education + instruction-file optimization. Do not route through a broken scan path.
 
 ## Setup
 
 `SKILL_DIR` is the directory containing this file. All bundled scripts live under `SKILL_DIR/scripts/`.
 
-If the skill was installed into an AI tool, use that installed location.
+If installed into an AI tool (via `claude install-skill`), use the installed location.
 
-If the repo was cloned into a sandbox or VM, use the clone directly. Do not copy files into a separate skills directory unless the user asked for that.
+If cloned into a sandbox or VM, use the clone directly — do not copy files into a separate skills directory.
+
+Quick sandbox setup:
+```bash
+git clone https://github.com/wallmage/vibecheck /tmp/vibecheck
+```
+Then SKILL_DIR = `/tmp/vibecheck`.
 
 ## Commands
 
-### `/vibecheck` or `/vibecheck scan`
-
-Run the full workflow below.
-
-### `/vibecheck explain`
-
-Teach the lessons only. Do not edit files.
-
-### `/vibecheck compress`
-
-Compress the detected instruction file, not just `CLAUDE.md`.
-
-### `/vibecheck monitor`
-
-Run the weekly comparison on the latest supported session analysis.
+- `/vibecheck` or `/vibecheck scan` — Full workflow below
+- `/vibecheck explain` — Teach lessons only, do not edit files
+- `/vibecheck compress` — Compress the detected instruction file
+- `/vibecheck monitor` — Weekly comparison on latest analysis
 
 ## Workflow
 
-### 1. Detect the user's tool first
-
-Run:
+### 1. Detect the user's tool
 
 ```bash
 python3 SKILL_DIR/scripts/detect_tool.py [optional_project_dir] > /tmp/vibecheck_tool_detect.json
 ```
 
-Read the JSON and use:
+Read the JSON. Key fields: `primary_tool_name`, `instruction_file`, `can_analyze`, `analysis_mode`, `note`.
 
-- `primary_tool_name`
-- `instruction_file`
-- `can_analyze`
-- `analysis_mode`
-- `supports_instruction_optimization`
-- `note`
-
-If detection fails and `needs_manual_input` is true, ask for the project folder or tool name.
-
-If an instruction file was detected, use its real path and filename everywhere. Do not hardcode `CLAUDE.md`.
+If `needs_manual_input` is true, ask for the project folder or tool name.
 
 For current support details, read [references/capabilities.md](references/capabilities.md).
 
 ### 2. Branch based on analysis support
 
-If `can_analyze` is `true`, choose the data-driven scan that matches `analysis_mode`.
+If `can_analyze` is true → run the data-driven scan (step 3).
+If `can_analyze` is false → explain that the tool was detected but full session-cost analysis is not available for that log format yet. Continue with cost education using industry averages + instruction-file optimization + optional compression. Skip step 3.
 
-If `can_analyze` is `false`, explain that the tool was detected but full session-cost analysis is not available yet for that log format. Continue with:
+### 3. Run the scan
 
-- cost education using industry averages
-- instruction-file optimization
-- optional compression of the detected instruction file
+All supported tools follow the same three-step pattern. Pick the scripts that match `analysis_mode`:
 
-Do not send the user through a broken scan path when the detector already says analysis is unsupported.
+| `analysis_mode` | find script | analyze script | sandbox export |
+|---|---|---|---|
+| `claude_jsonl` | `find_claude_logs.py` | `analyze_claude_sessions.py` | `export_logs.py` |
+| `codex_jsonl` | `find_codex_logs.py` | `analyze_codex_sessions.py` | `export_logs.py codex` |
+| `cursor_sqlite` | `find_cursor_logs.py` | `analyze_cursor_sessions.py` | `export_logs.py cursor` |
+| `openclaw_jsonl` | `find_openclaw_logs.py` | `analyze_openclaw_sessions.py` | `export_logs.py openclaw` |
+| `copilot_chat_json` | `find_copilot_logs.py` | `analyze_copilot_sessions.py` | `export_logs.py copilot` |
+| `windsurf_transcript` | `find_windsurf_logs.py` | `analyze_windsurf_sessions.py` | `export_logs.py windsurf` |
+| `trae_sqlite` | `find_trae_logs.py` | `analyze_trae_sessions.py` | `export_logs.py trae` |
+| `qoder_sqlite` | `find_qoder_logs.py` | `analyze_qoder_sessions.py` | `export_logs.py qoder` |
+| `codebuddy_hybrid` | `find_codebuddy_logs.py` | `analyze_buddy_sessions.py` | `export_logs.py codebuddy` |
+| `workbuddy_hybrid` | `find_workbuddy_logs.py` | `analyze_buddy_sessions.py` | `export_logs.py workbuddy` |
+| `antigravity_brain` | `find_antigravity_logs.py` | `analyze_antigravity_sessions.py` | `export_logs.py antigravity` |
 
-### 3. Full scan path for supported session logs
-
-#### Claude Code (`analysis_mode = claude_jsonl`)
-
-Run:
+**Generic scan flow** (same for every tool):
 
 ```bash
-python3 SKILL_DIR/scripts/find_logs.py 14 > /tmp/vibecheck_sessions.json
-```
-
-If logs are found, continue:
-
-```bash
-python3 SKILL_DIR/scripts/analyze_sessions.py /tmp/vibecheck_sessions.json > /tmp/vibecheck_analysis.json
+python3 SKILL_DIR/scripts/<find_script> 14 > /tmp/vibecheck_sessions.json
+python3 SKILL_DIR/scripts/<analyze_script> /tmp/vibecheck_sessions.json > /tmp/vibecheck_analysis.json
 python3 SKILL_DIR/scripts/explain.py /tmp/vibecheck_analysis.json > /tmp/vibecheck_lesson.json
 ```
 
 Do not paste raw JSON to the user. Read the lesson JSON and explain results in plain language.
 
-If `find_logs.py` returns `"error": "no_logs"`, explain that the sandbox cannot see their personal logs directly, then show exactly one export command for their platform:
+**If no logs found** (sandbox environment): The JSON includes `platform` (mac/windows/linux).
 
-- macOS/Linux: `python3 SKILL_DIR/scripts/export_logs.py`
-- Windows: `python SKILL_DIR/scripts/export_logs.py`
+Explain briefly (2-3 sentences):
+> Your AI chat logs contain timestamps, token counts, and tool calls — that's what I need to find where your money goes. I can't access them directly because this tool runs in a virtual machine that's walled off from your personal files. But we can copy just the last 14 days over — takes 5 seconds.
 
-Then wait. If they copy logs into `~/vibecheck-logs`, re-run:
+Show exactly ONE command based on `platform`. Do NOT show multiple commands or alternatives.
 
+macOS/Linux: `python3 SKILL_DIR/scripts/<sandbox_export>`
+Windows: `python SKILL_DIR/scripts/<sandbox_export>`
+
+Tell them: "Open Terminal (or Command Prompt), paste this, hit Enter. Tell me when it's done — or skip this and I'll use typical numbers instead (still gets you most of the benefit)."
+
+Wait for response. If they confirm done, re-run with `~/vibecheck-logs`:
 ```bash
-python3 SKILL_DIR/scripts/find_logs.py 14 ~/vibecheck-logs > /tmp/vibecheck_sessions.json
+python3 SKILL_DIR/scripts/<find_script> 14 ~/vibecheck-logs > /tmp/vibecheck_sessions.json
 ```
+If they skip, continue with industry averages.
 
-If they skip exporting logs, continue with education + instruction-file optimization.
+### 4. Teach
 
-#### Codex (`analysis_mode = codex_jsonl`)
+The teaching flow is interactive — pause between sections and wait for the user to respond before continuing. This is education, not a report dump.
 
-Run:
+Use `waste_descriptions`, `worst_day`, `top3_waste`, and `cache_explanations` from the lesson JSON when available. For the full pattern library and analogies, read [references/waste-patterns.md](references/waste-patterns.md).
 
-```bash
-python3 SKILL_DIR/scripts/find_codex_logs.py 14 > /tmp/vibecheck_sessions.json
-python3 SKILL_DIR/scripts/analyze_codex_sessions.py /tmp/vibecheck_sessions.json > /tmp/vibecheck_analysis.json
-python3 SKILL_DIR/scripts/explain.py /tmp/vibecheck_analysis.json > /tmp/vibecheck_lesson.json
-```
+**Lesson 1 — "What are you actually paying for?"**
 
-Codex logs expose per-step `last_token_usage`, so the analysis can estimate turn costs from real session telemetry instead of generic averages.
+Explain subscription vs actual token usage. Key insight: every message re-reads the entire conversation. Message #50 re-reads all 49 previous messages. The AI spends most of your money re-reading, not thinking. Show their tier if known (Claude $20→~$200 API value, $100→~$1,000, $200→~$4,000). End with a question and WAIT.
 
-If Codex logs are not directly visible in a sandbox, tell the user to run:
+**Lesson 2 — "Where your money actually goes"**
 
-```bash
-python3 SKILL_DIR/scripts/export_logs.py codex
-```
+Break their bill into three parts: re-reading old messages (50-65%), new content entering context (15-25%), and actual AI responses (10-15%). The punchline: the actual code the AI writes is the smallest part of the bill. Use their busiest day if available. End with a question and WAIT.
 
-Then re-run:
+**Lesson 3 — "Your top money wasters"**
 
-```bash
-python3 SKILL_DIR/scripts/find_codex_logs.py 14 ~/vibecheck-logs > /tmp/vibecheck_sessions.json
-```
-
-#### Cursor (`analysis_mode = cursor_sqlite`)
-
-Run:
-
-```bash
-python3 SKILL_DIR/scripts/find_cursor_logs.py 14 > /tmp/vibecheck_sessions.json
-python3 SKILL_DIR/scripts/analyze_cursor_sessions.py /tmp/vibecheck_sessions.json > /tmp/vibecheck_analysis.json
-python3 SKILL_DIR/scripts/explain.py /tmp/vibecheck_analysis.json > /tmp/vibecheck_lesson.json
-```
-
-Cursor stores conversations in SQLite under `workspaceStorage` and related global storage. When Cursor includes token counters, use them. When it does not, estimate token cost from the reconstructed conversation content and model metadata.
-
-If Cursor storage is not directly visible in a sandbox, tell the user to run:
-
-```bash
-python3 SKILL_DIR/scripts/export_logs.py cursor
-```
-
-Then re-run:
-
-```bash
-python3 SKILL_DIR/scripts/find_cursor_logs.py 14 ~/vibecheck-logs > /tmp/vibecheck_sessions.json
-```
-
-#### OpenClaw (`analysis_mode = openclaw_jsonl`)
-
-Run:
-
-```bash
-python3 SKILL_DIR/scripts/find_openclaw_logs.py 14 > /tmp/vibecheck_sessions.json
-python3 SKILL_DIR/scripts/analyze_openclaw_sessions.py /tmp/vibecheck_sessions.json > /tmp/vibecheck_analysis.json
-python3 SKILL_DIR/scripts/explain.py /tmp/vibecheck_analysis.json > /tmp/vibecheck_lesson.json
-```
-
-OpenClaw stores per-agent session metadata in `sessions.json` and transcript JSONL files beside it. Use the measured transcript data when available, and surface always-on waste patterns like idle heartbeats, bloated workspace files, and memory buildup.
-
-If OpenClaw storage is not directly visible in a sandbox, tell the user to run:
-
-```bash
-python3 SKILL_DIR/scripts/export_logs.py openclaw
-```
-
-Then re-run:
-
-```bash
-python3 SKILL_DIR/scripts/find_openclaw_logs.py 14 ~/vibecheck-logs > /tmp/vibecheck_sessions.json
-```
-
-#### GitHub Copilot / VS Code (`analysis_mode = copilot_chat_json`)
-
-Run:
-
-```bash
-python3 SKILL_DIR/scripts/find_copilot_logs.py 14 > /tmp/vibecheck_sessions.json
-python3 SKILL_DIR/scripts/analyze_copilot_sessions.py /tmp/vibecheck_sessions.json > /tmp/vibecheck_analysis.json
-python3 SKILL_DIR/scripts/explain.py /tmp/vibecheck_analysis.json > /tmp/vibecheck_lesson.json
-```
-
-This path supports local VS Code Copilot chat sessions and exported chat JSON/JSONL. It reconstructs newer JSONL mutation logs, reads workspace and empty-window sessions, and estimates turn costs from stored token usage when present or from reconstructed turn size when not.
-
-If the storage is not directly visible in a sandbox, tell the user to run:
-
-```bash
-python3 SKILL_DIR/scripts/export_logs.py copilot
-```
-
-Then re-run:
-
-```bash
-python3 SKILL_DIR/scripts/find_copilot_logs.py 14 ~/vibecheck-logs > /tmp/vibecheck_sessions.json
-```
-
-#### Windsurf (`analysis_mode = windsurf_transcript`)
-
-Run:
-
-```bash
-python3 SKILL_DIR/scripts/find_windsurf_logs.py 14 > /tmp/vibecheck_sessions.json
-python3 SKILL_DIR/scripts/analyze_windsurf_sessions.py /tmp/vibecheck_sessions.json > /tmp/vibecheck_analysis.json
-python3 SKILL_DIR/scripts/explain.py /tmp/vibecheck_analysis.json > /tmp/vibecheck_lesson.json
-```
-
-Prefer the official Windsurf transcript hook output under `~/.windsurf/transcripts/*.jsonl`. Keep compatibility support for older local cache files under `.codeium/windsurf/cascade` when they are present, but treat the transcript hook as the primary supported source.
-
-If Windsurf storage is not directly visible in a sandbox, tell the user to run:
-
-```bash
-python3 SKILL_DIR/scripts/export_logs.py windsurf
-```
-
-Then re-run:
-
-```bash
-python3 SKILL_DIR/scripts/find_windsurf_logs.py 14 ~/vibecheck-logs > /tmp/vibecheck_sessions.json
-```
-
-#### TRAE (`analysis_mode = trae_sqlite`)
-
-Run:
-
-```bash
-python3 SKILL_DIR/scripts/find_trae_logs.py 14 > /tmp/vibecheck_sessions.json
-python3 SKILL_DIR/scripts/analyze_trae_sessions.py /tmp/vibecheck_sessions.json > /tmp/vibecheck_analysis.json
-python3 SKILL_DIR/scripts/explain.py /tmp/vibecheck_analysis.json > /tmp/vibecheck_lesson.json
-```
-
-TRAE stores workspace state in `workspaceStorage/*/state.vscdb`. Use the current chat data stored under `ItemTable` keys that start with `memento/icube-ai-ng-chat-storage`, and reconstruct session/message lists from there instead of pretending the schema is identical to Cursor.
-
-If TRAE storage is not directly visible in a sandbox, tell the user to run:
-
-```bash
-python3 SKILL_DIR/scripts/export_logs.py trae
-```
-
-Then re-run:
-
-```bash
-python3 SKILL_DIR/scripts/find_trae_logs.py 14 ~/vibecheck-logs > /tmp/vibecheck_sessions.json
-```
-
-#### Qoder (`analysis_mode = qoder_sqlite`)
-
-Run:
-
-```bash
-python3 SKILL_DIR/scripts/find_qoder_logs.py 14 > /tmp/vibecheck_sessions.json
-python3 SKILL_DIR/scripts/analyze_qoder_sessions.py /tmp/vibecheck_sessions.json > /tmp/vibecheck_analysis.json
-python3 SKILL_DIR/scripts/explain.py /tmp/vibecheck_analysis.json > /tmp/vibecheck_lesson.json
-```
-
-Qoder stores workspace state in `workspaceStorage/*/state.vscdb`. The exact chat-storage keys are not formally documented, so use a broad `ItemTable` extractor that looks for current chat, conversation, session, quest, and agent payloads, then reconstruct message lists from those JSON values.
-
-If Qoder storage is not directly visible in a sandbox, tell the user to run:
-
-```bash
-python3 SKILL_DIR/scripts/export_logs.py qoder
-```
-
-Then re-run:
-
-```bash
-python3 SKILL_DIR/scripts/find_qoder_logs.py 14 ~/vibecheck-logs > /tmp/vibecheck_sessions.json
-```
-
-#### CodeBuddy (`analysis_mode = codebuddy_hybrid`)
-
-Run:
-
-```bash
-python3 SKILL_DIR/scripts/find_codebuddy_logs.py 14 > /tmp/vibecheck_sessions.json
-python3 SKILL_DIR/scripts/analyze_buddy_sessions.py /tmp/vibecheck_sessions.json > /tmp/vibecheck_analysis.json
-python3 SKILL_DIR/scripts/explain.py /tmp/vibecheck_analysis.json > /tmp/vibecheck_lesson.json
-```
-
-CodeBuddy exposes a session index plus runtime logs. Use the session index to enumerate conversations, then merge in runtime events like session creation, model selection, prompt resolution, message counts, and failures from `codebuddy.log`.
-
-If CodeBuddy storage is not directly visible in a sandbox, tell the user to run:
-
-```bash
-python3 SKILL_DIR/scripts/export_logs.py codebuddy
-```
-
-#### WorkBuddy (`analysis_mode = workbuddy_hybrid`)
-
-Run:
-
-```bash
-python3 SKILL_DIR/scripts/find_workbuddy_logs.py 14 > /tmp/vibecheck_sessions.json
-python3 SKILL_DIR/scripts/analyze_buddy_sessions.py /tmp/vibecheck_sessions.json > /tmp/vibecheck_analysis.json
-python3 SKILL_DIR/scripts/explain.py /tmp/vibecheck_analysis.json > /tmp/vibecheck_lesson.json
-```
-
-WorkBuddy uses the same session index pattern as CodeBuddy and also keeps VS Code-style workspace state plus app logs under `WorkBuddy/logs`. Prefer the session index plus runtime logs, and treat workspace SQLite as an auxiliary source.
-
-If WorkBuddy storage is not directly visible in a sandbox, tell the user to run:
-
-```bash
-python3 SKILL_DIR/scripts/export_logs.py workbuddy
-```
-
-#### Google Antigravity (`analysis_mode = antigravity_brain`)
-
-Run:
-
-```bash
-python3 SKILL_DIR/scripts/find_antigravity_logs.py 14 > /tmp/vibecheck_sessions.json
-python3 SKILL_DIR/scripts/analyze_antigravity_sessions.py /tmp/vibecheck_sessions.json > /tmp/vibecheck_analysis.json
-python3 SKILL_DIR/scripts/explain.py /tmp/vibecheck_analysis.json > /tmp/vibecheck_lesson.json
-```
-
-Antigravity keeps raw conversations in encrypted `.pb` files, but it also writes readable task, plan, and walkthrough artifacts under `~/.gemini/antigravity/brain/<conversation-id>/`. Use those artifacts and their metadata as the supported scan surface instead of pretending the encrypted transport is directly parseable.
-
-If Antigravity storage is not directly visible in a sandbox, tell the user to run:
-
-```bash
-python3 SKILL_DIR/scripts/export_logs.py antigravity
-```
-
-### 4. Teaching flow
-
-Keep the interactive explanation short and concrete:
-
-1. Explain subscription vs actual token usage.
-2. Explain that most cost comes from re-reading context, not generating code.
-3. Show the user's busiest day and top waste patterns when data is available.
-4. End each lesson chunk with a short pause for confirmation before moving on.
-
-Use `waste_descriptions`, `worst_day`, and `top3_waste` from the lesson JSON when available.
-
-For the full pattern library and plain-language analogies, read [references/waste-patterns.md](references/waste-patterns.md).
+Show their top 3 waste patterns (from `top3_waste`) with plain-language analogies. Show total waste cost. End with: "The fix is simple — one paragraph added to your [instruction_file]. Same work, fewer wasted messages. Want me to set it up?" WAIT.
 
 ### 5. Report + fixes
 
-When analysis exists, generate the report:
+Generate the report when analysis data exists:
 
 ```bash
 python3 SKILL_DIR/scripts/report.py /tmp/vibecheck_analysis.json /path/to/instruction_file
 ```
 
-Then propose edits to the detected instruction file.
+Then propose edits to the detected instruction file. Adapt format to the tool:
+- CLAUDE.md / AGENTS.md → markdown paragraphs
+- .cursorrules / .windsurfrules / .clinerules → one rule per line
+- SOUL.md → personality/rules section
+- Others → markdown paragraphs (safe default)
 
-Safe, low-risk fixes:
+**The fix block** — add near top of instruction file. This is the core behavior change that cuts waste:
 
-- reduce idle narration
-- reduce verbose tool output
-- encourage batching of independent actions
-- prefer command chaining where appropriate
-- encourage fresh sessions between unrelated tasks
+For interactive tools (Claude Code, Cursor, Codex, etc.):
+```
+**Cost rules:** Every turn = context tax. No turn without tool call. No narration/status/"now I'll…". Think → act same turn. Batch independent tool calls (multiple Reads/Edits/files per turn). Chain commands with `&&`. File re-reads banned — content in context after first read. User sees zero code/diffs unless asked.
+Verbose output: pipe build/test/install to /tmp/, use --quiet flags, tail -50 max. After 2 failed fixes on same file: stop, re-read error fully, think, single targeted fix. Clear/compact between unrelated tasks — never exceed ~20 turns without clearing. Max 3 file reads before first Edit.
+```
 
-Review-before-applying fixes:
+For always-on agents (OpenClaw, etc.):
+```
+**Efficiency rules:** Heartbeat frequency: 30min minimum for idle checks. Skip wake-up if no triggers/notifications. Compress workspace files — remove verbose personality text, keep behavioral rules. Prune session history: archive after 50 turns, summarize, start fresh. Pipe all command output to files, never inline. No status messages between actions.
+```
 
-- strict exploration limits
-- aggressive anti-reread rules
-- behavior changes that could reduce accuracy in complex repos
-
-Avoid absolute rules like "no turn without tool call" or "file rereads banned." Prefer heuristics that reduce waste without forcing premature edits.
-
-For reusable rule blocks, read [references/fix-blocks.md](references/fix-blocks.md).
+These are the tested, proven rules. Present them as safe defaults — they change HOW the AI works, not WHAT it does. If the user is cautious, offer the softer alternative from [references/fix-blocks.md](references/fix-blocks.md).
 
 ### 6. Compression flow
 
-Compression always targets the detected instruction file path.
-
-1. Back it up.
-2. Measure it.
-3. Run mechanical markdown stripping.
-4. Propose higher-risk creative compression separately.
-5. Keep examples, commands, paths, and critical project guidance intact.
-
-Example:
+Compress the detected instruction file (not hardcoded to CLAUDE.md):
 
 ```bash
 cp /path/to/instruction_file /path/to/instruction_file.backup
@@ -392,25 +159,38 @@ python3 SKILL_DIR/scripts/measure.py /path/to/instruction_file
 python3 SKILL_DIR/scripts/strip_markdown.py /path/to/instruction_file /path/to/instruction_file.working
 ```
 
-### 7. Comparison flow
+Four passes:
+1. **Strip markdown** (automatic, lossless) — remove formatting cruft
+2. **Creative compression** (needs approval) — dedup, compress code blocks, trim verbose rationale
+3. **Remove human-only content** (needs approval) — installation guides, coaching, verbose WHY explanations
+4. **Telegram mode** (optional, explicit permission only) — rewrite in shorthand fragments
 
-After applying fixes from a supported analysis run:
+Show reduction after each pass. Preserve: trigger patterns, shell commands/paths, migration tables (compress format, keep every row).
+
+### 7. Before/after comparison
+
+After applying fixes:
 
 ```bash
 python3 SKILL_DIR/scripts/compare.py /tmp/vibecheck_analysis.json
 ```
 
-Explain the before/after numbers in plain language. Focus on turns per session, waste percentage, and average cost per session.
+Snapshots persist in `~/.vibecheck/snapshots/`. First run shows projections, subsequent runs show actual delta with ✅/⚠️ flags.
+
+Present in plain language: "Last time you averaged 36.8 turns at $2.62. Now you're at 25.9 turns at $1.35 — that's 49% less waste."
+
+End with: "Run `/vibecheck scan` again in 1-2 weeks to see your actual savings."
 
 ## Guidance
 
-- Prefer "fewer turns, less repeated context, same outcome" as the core framing.
-- Keep the user-facing explanation non-technical unless they ask for pricing details.
-- If the tool is unsupported for full analysis, never fake precision.
-- If you edit the instruction file, adapt the output format to the tool's actual file style.
+- Core framing: "fewer turns, less repeated context, same outcome."
+- Keep user-facing explanation non-technical unless they ask for details.
+- If the tool is unsupported for full analysis, never fake precision — use confidence labels.
+- Adapt output format to the tool's actual instruction file style.
+- The strong fix block ("no turn without tool call") is the #1 cost saver across all tested deployments. Default to it. The soft version exists for users who prefer gentler rules.
 
 ## References
 
 - Capabilities and support matrix: [references/capabilities.md](references/capabilities.md)
-- Waste pattern explanations: [references/waste-patterns.md](references/waste-patterns.md)
-- Reusable fix blocks: [references/fix-blocks.md](references/fix-blocks.md)
+- Waste pattern explanations and analogies: [references/waste-patterns.md](references/waste-patterns.md)
+- Alternative (softer) fix blocks: [references/fix-blocks.md](references/fix-blocks.md)

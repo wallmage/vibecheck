@@ -22,7 +22,7 @@ def run_json(script_name, *args):
 
 class RegressionTests(unittest.TestCase):
     def test_claude_analysis_includes_confidence_and_pricing_metadata(self):
-        data = run_json("analyze_sessions.py", ROOT / "tests/fixtures/claude/sessions.json")
+        data = run_json("analyze_claude_sessions.py", ROOT / "tests/fixtures/claude/sessions.json")
         self.assertEqual(data["analysis_confidence"]["label"], "measured")
         self.assertEqual(data["pricing_metadata"]["billing_mode"], "full_billing")
         self.assertEqual(data["pricing_metadata"]["registry_version"], "2026-04-08")
@@ -34,7 +34,7 @@ class RegressionTests(unittest.TestCase):
         self.assertEqual(data["pricing_metadata"]["billing_mode"], "full_billing")
 
     def test_explain_surfaces_registry_and_confidence(self):
-        analysis = run_json("analyze_sessions.py", ROOT / "tests/fixtures/claude/sessions.json")
+        analysis = run_json("analyze_claude_sessions.py", ROOT / "tests/fixtures/claude/sessions.json")
         fixture_path = ROOT / "tests/fixtures/tmp-analysis.json"
         fixture_path.write_text(json.dumps(analysis))
         try:
@@ -46,7 +46,7 @@ class RegressionTests(unittest.TestCase):
         self.assertEqual(lesson["pricing_registry"]["billing_mode"], "full_billing")
 
     def test_report_prints_confidence_and_pricing_basis(self):
-        analysis = run_json("analyze_sessions.py", ROOT / "tests/fixtures/claude/sessions.json")
+        analysis = run_json("analyze_claude_sessions.py", ROOT / "tests/fixtures/claude/sessions.json")
         fixture_path = ROOT / "tests/fixtures/tmp-report-analysis.json"
         fixture_path.write_text(json.dumps(analysis))
         try:

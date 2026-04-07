@@ -64,5 +64,5 @@ Provider-specific mechanics currently encoded:
 
 Implementation files:
 - pricing registry: `/Users/wallny/Developer/vibecheck/scripts/model_pricing.py`
-- shared Claude analyzer: `/Users/wallny/Developer/vibecheck/scripts/analyze_sessions.py`
+- shared Claude analyzer: `/Users/wallny/Developer/vibecheck/scripts/analyze_claude_sessions.py`
 - lesson/report builder: `/Users/wallny/Developer/vibecheck/scripts/explain.py`

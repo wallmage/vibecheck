@@ -52,6 +52,6 @@ Use a short explanation:
 
 ## Do not do this
 
-- Do not detect Cursor/Codex and then run `find_logs.py` as if those logs were supported.
+- Do not detect Cursor/Codex and then run `find_claude_logs.py` as if those logs were supported.
 - Do not imply that unsupported tools have broken logs. The limitation is our parser coverage, not user error.
 - Do not fabricate dollar amounts for unsupported tools and present them as measured facts.
