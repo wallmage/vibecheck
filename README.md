@@ -10,7 +10,7 @@ I ran this on my own sessions. Over 50% of my token spend was waste. Not edge ca
 
 vibecheck analyzes AI coding session logs, shows you where the money went, and adds a paragraph to your instruction file that stops most of the waste. Same work gets done. Lower bill.
 
-Works with all major model families — Claude, GPT, Gemini, DeepSeek. Supports 24+ coding tools, with full session analysis now available for Claude Code, Codex, Cursor, OpenClaw, GitHub Copilot / VS Code chat sessions, Windsurf, and TRAE, plus instruction-file optimization across the rest. Runs locally. Your data stays on your machine.
+Works with all major model families — Claude, GPT, Gemini, DeepSeek, Qwen, Kimi, GLM, MiniMax. Supports 24+ coding tools, with full session analysis for Claude Code, Codex, Cursor, OpenClaw, GitHub Copilot, Windsurf, TRAE, Qoder, CodeBuddy, WorkBuddy, and Google Antigravity, plus instruction-file optimization across the rest. Runs locally. Your data stays on your machine.
 
 ## Nothing to install
 
@@ -37,7 +37,7 @@ A recipe card for your AI. It doesn't modify anything or install anything. It's 
 
 ### Coding tools vs chat tools
 
-**Coding tools** run on your machine, so vibecheck can often detect your tool and instruction file automatically. Claude Code, Codex, Cursor, OpenClaw, GitHub Copilot / VS Code chat sessions, Windsurf, and TRAE already get the full session scan. Other supported tools still get instruction-file optimization and cost education while deeper log support rolls out.
+**Coding tools** run on your machine, so vibecheck can often detect your tool and instruction file automatically. Claude Code, Codex, Cursor, OpenClaw, GitHub Copilot, Windsurf, TRAE, Qoder, CodeBuddy, WorkBuddy, and Google Antigravity already get the full session scan. Other supported tools still get instruction-file optimization and cost education while deeper log support rolls out.
 
 **Chat tools** (Cowork, browser-based tools) run in a sandbox and can't see your logs. vibecheck still works two ways:
 
@@ -130,7 +130,7 @@ Supports 24+ tools today.
 - **Full session scan:** Claude Code, Codex, Cursor, OpenClaw, GitHub Copilot / VS Code chat sessions, Windsurf, TRAE, Qoder, CodeBuddy, WorkBuddy, Google Antigravity
 - **Detection + instruction optimization:** Cline, Roo Code, Kilo Code, Aider, Gemini CLI, OpenCode, Augment, Kimi Code, MarsCode, Tongyi Lingma, Baidu Comate, CodeGeeX, DevChat, MiniMax
 
-All LLMs: Claude (Opus/Sonnet/Haiku), GPT-4o/4.1/o1/o3, Gemini 2.5/2.0, DeepSeek V3/R1.
+All LLMs: Claude Opus/Sonnet 4.6, GPT-5.4, Gemini 3.1 Pro, DeepSeek V3.2, Qwen 3.6, Kimi K2.5, GLM-5, MiniMax M2.7, and 40+ more.
 
 ## Runs on
 

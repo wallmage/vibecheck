@@ -10,7 +10,7 @@
 
 vibecheck 解決這個問題。掃描最近 14 天的工作階段，精確找出浪費在哪裡，用白話解釋（不用術語——我們會教你什麼是 Token），然後在你的設定檔加一段話就搞定。活照做，錢省一半。
 
-**平均節省：50%+ 的 Token 帳單。** 支援所有 LLM 模型（Claude、GPT、Gemini、DeepSeek）。支援 Claude Code、OpenClaw、Codex、OpenCode 等 24+ 種 AI 程式開發工具。100% 本機執行——你的資料永遠不會離開你的電腦。
+**平均節省：50%+ 的 Token 帳單。** 支援所有 LLM 模型（Claude、GPT、Gemini、DeepSeek、Qwen、Kimi、GLM、MiniMax）。支援 Claude Code、Codex、Cursor、OpenClaw、Copilot、Windsurf 等 24+ 種 AI 程式開發工具。100% 本機執行——你的資料永遠不會離開你的電腦。
 
 ## 立即開始——不需要下載任何東西
 
@@ -68,6 +68,6 @@ vibecheck 需要存取**專案資料夾**來讀取和編輯設定檔。每次修
 
 ## 支援工具
 
-24+ 種。所有 LLM：Claude、GPT-4o/4.1/o1/o3、Gemini 2.5/2.0、DeepSeek V3/R1。
+24+ 種。所有 LLM：Claude Opus/Sonnet 4.6、GPT-5.4、Gemini 3.1 Pro、DeepSeek V3.2、Qwen 3.6、Kimi K2.5、GLM-5、MiniMax M2.7 等 40+ 個模型。
 
 macOS、Windows、Linux、iPad/手機 via SSH。Python 3.8+，無外部依賴。

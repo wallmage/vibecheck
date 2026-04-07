@@ -29,7 +29,7 @@ Use this file when deciding whether to run a full scan or switch to instruction-
 
 ## 2026 full-support targets
 
-Use [support-priority-2026-04.md](/Users/wallny/Developer/vibecheck/references/support-priority-2026-04.md) as the current roadmap for which tool families should receive full session-analysis support next.
+Use [support-priority-2026-04.md](support-priority-2026-04.md) as the current roadmap for which tool families should receive full session-analysis support next.
 
 Current top-10 target families:
 

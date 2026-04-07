@@ -10,7 +10,7 @@
 
 vibecheckがそれを解決します。過去14日間のセッションをスキャンし、無駄がどこにあるか正確に特定し、わかりやすい言葉で説明し（専門用語なし）、設定ファイルに1段落追加するだけで修正。同じ作業、半分のコスト。
 
-**平均節約：トークン請求の50%以上。** すべてのLLMモデル（Claude、GPT、Gemini、DeepSeek）に対応。Claude Code、OpenClaw、Codex、OpenCode、Cursor、Windsurf等24以上のツールをサポート。100%ローカル実行——データは一切外部に送信されません。
+**平均節約：トークン請求の50%以上。** すべてのLLMモデル（Claude、GPT、Gemini、DeepSeek、Qwen、Kimi、GLM、MiniMax）に対応。Claude Code、Codex、Cursor、OpenClaw、Copilot、Windsurf等24以上のツールをサポート。100%ローカル実行——データは一切外部に送信されません。
 
 ## 今すぐ始める——ダウンロード不要
 
@@ -68,6 +68,6 @@ claude install-skill https://github.com/wallmage/vibecheck
 
 ## 対応ツール
 
-24種以上。全LLM対応：Claude、GPT-4o/4.1/o1/o3、Gemini 2.5/2.0、DeepSeek V3/R1。
+24種以上。全LLM対応：Claude Opus/Sonnet 4.6、GPT-5.4、Gemini 3.1 Pro、DeepSeek V3.2、Qwen 3.6、Kimi K2.5、GLM-5、MiniMax M2.7 他40+モデル。
 
 macOS、Windows、Linux、iPad/モバイル via SSH。Python 3.8+、外部依存なし。

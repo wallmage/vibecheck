@@ -63,6 +63,6 @@ Provider-specific mechanics currently encoded:
 - MiniMax: normalized CNY source pricing plus explicit cache read/write prices
 
 Implementation files:
-- pricing registry: `/Users/wallny/Developer/vibecheck/scripts/model_pricing.py`
-- shared Claude analyzer: `/Users/wallny/Developer/vibecheck/scripts/analyze_claude_sessions.py`
-- lesson/report builder: `/Users/wallny/Developer/vibecheck/scripts/explain.py`
+- pricing registry: `scripts/model_pricing.py`
+- shared Claude analyzer: `scripts/analyze_claude_sessions.py`
+- lesson/report builder: `scripts/explain.py`

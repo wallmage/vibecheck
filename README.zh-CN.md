@@ -10,7 +10,7 @@
 
 vibecheck 扫你最近 14 天的 AI 编程会话，告诉你钱花哪了，然后在你的配置文件里加一段话，把大部分浪费堵住。活一样干，账单少一半。
 
-支持所有模型——Claude、GPT、Gemini、DeepSeek。支持 Claude Code、Cursor、Codex、OpenClaw、Windsurf 等 24 种工具。本地运行，数据不出你的电脑。
+支持所有模型——Claude、GPT、Gemini、DeepSeek、Qwen、Kimi、GLM、MiniMax。支持 Claude Code、Codex、Cursor、OpenClaw、Copilot、Windsurf、TRAE、Qoder 等 24 种工具。本地运行，数据不出你的电脑。
 
 ## 不用装任何东西
 
@@ -128,7 +128,7 @@ vibecheck 用你自己的数据走一遍：
 
 Claude Code、Codex、Cursor、Windsurf、Cline、Roo Code、Kilo Code、Aider、Gemini CLI、Copilot、OpenCode、OpenClaw、Augment、CodeBuddy（腾讯）、WorkBuddy（腾讯）、TRAE（字节）、Qoder（阿里）、Kimi Code（月之暗面）、MarsCode（字节）、通义灵码（阿里）、百度 Comate、CodeGeeX（智谱）、DevChat、MiniMax。
 
-所有模型都支持：Claude、GPT-4o/4.1/o1/o3、Gemini 2.5/2.0、DeepSeek V3/R1。
+所有模型：Claude Opus/Sonnet 4.6、GPT-5.4、Gemini 3.1 Pro、DeepSeek V3.2、Qwen 3.6、Kimi K2.5、GLM-5、MiniMax M2.7 等 40+ 个模型。
 
 ## 运行环境
 

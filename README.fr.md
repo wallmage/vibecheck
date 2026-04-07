@@ -10,7 +10,7 @@ La plupart des vibe codeurs gaspillent **plus de 50%** de leur budget tokens IA 
 
 vibecheck corrige ça. Il scanne vos 14 derniers jours, trouve exactement où va le gaspillage, l'explique en langage clair, et applique des correctifs d'un paragraphe. Même travail. Moitié prix.
 
-**Économie moyenne : 50%+ de votre facture de tokens.** Supporte tous les modèles LLM (Claude, GPT, Gemini, DeepSeek). Fonctionne avec Claude Code, OpenClaw, Codex, OpenCode, Cursor, Windsurf et 24+ outils. 100% local — vos données ne quittent jamais votre machine.
+**Économie moyenne : 50%+ de votre facture de tokens.** Supporte tous les modèles LLM (Claude, GPT, Gemini, DeepSeek, Qwen, Kimi, GLM, MiniMax). Fonctionne avec Claude Code, Codex, Cursor, OpenClaw, Copilot, Windsurf et 24+ outils. 100% local — vos données ne quittent jamais votre machine.
 
 ## Commencer — rien à télécharger
 
@@ -68,6 +68,6 @@ Accès au **dossier projet** pour lire/éditer le fichier de config. Demande ava
 
 ## Outils supportés
 
-24+. Tous les LLM : Claude, GPT-4o/4.1/o1/o3, Gemini 2.5/2.0, DeepSeek V3/R1.
+24+. Tous les LLM : Claude Opus/Sonnet 4.6, GPT-5.4, Gemini 3.1 Pro, DeepSeek V3.2, Qwen 3.6, Kimi K2.5, GLM-5, MiniMax M2.7 et 40+ autres.
 
 macOS, Windows, Linux, iPad/mobile via SSH. Python 3.8+, aucune dépendance externe.

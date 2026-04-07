@@ -10,7 +10,7 @@ La maggior parte dei vibe coder spreca **oltre il 50%** del proprio budget token
 
 vibecheck risolve il problema. Scansiona gli ultimi 14 giorni, trova lo spreco, lo spiega in linguaggio semplice, e applica correzioni di un paragrafo. Stesso lavoro. Metà costo.
 
-**Risparmio medio: 50%+ della tua bolletta token.** Supporta tutti i modelli LLM (Claude, GPT, Gemini, DeepSeek). Funziona con Claude Code, OpenClaw, Codex, OpenCode, Cursor, Windsurf e 24+ strumenti. 100% locale — i tuoi dati non lasciano mai il tuo computer.
+**Risparmio medio: 50%+ della tua bolletta token.** Supporta tutti i modelli LLM (Claude, GPT, Gemini, DeepSeek, Qwen, Kimi, GLM, MiniMax). Funziona con Claude Code, Codex, Cursor, OpenClaw, Copilot, Windsurf e 24+ strumenti. 100% locale — i tuoi dati non lasciano mai il tuo computer.
 
 ## Inizia subito — niente da scaricare
 
@@ -68,6 +68,6 @@ Necessita accesso alla **cartella progetto** per leggere/editare il file di conf
 
 ## Strumenti supportati
 
-24+. Tutti i LLM: Claude, GPT-4o/4.1/o1/o3, Gemini 2.5/2.0, DeepSeek V3/R1.
+24+. Tutti i LLM: Claude Opus/Sonnet 4.6, GPT-5.4, Gemini 3.1 Pro, DeepSeek V3.2, Qwen 3.6, Kimi K2.5, GLM-5, MiniMax M2.7 e 40+ altri.
 
 macOS, Windows, Linux, iPad/mobile via SSH. Python 3.8+, nessuna dipendenza esterna.

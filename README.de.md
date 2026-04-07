@@ -10,7 +10,7 @@ Die meisten Vibe-Coder verschwenden **über 50%** ihres KI-Token-Budgets, ohne e
 
 vibecheck behebt das. Es scannt deine letzten 14 Tage, findet genau wo die Verschwendung liegt, erklärt es in einfacher Sprache (kein Fachjargon), und wendet Ein-Absatz-Fixes auf deine Konfigurationsdatei an. Gleiche Arbeit. Halbe Kosten.
 
-**Durchschnittliche Ersparnis: 50%+ deiner Token-Rechnung.** Unterstützt alle LLM-Modelle (Claude, GPT, Gemini, DeepSeek). Funktioniert mit Claude Code, OpenClaw, Codex, OpenCode, Cursor, Windsurf und 24+ KI-Coding-Tools. 100% lokal — deine Daten verlassen niemals deinen Rechner.
+**Durchschnittliche Ersparnis: 50%+ deiner Token-Rechnung.** Unterstützt alle LLM-Modelle (Claude, GPT, Gemini, DeepSeek, Qwen, Kimi, GLM, MiniMax). Funktioniert mit Claude Code, Codex, Cursor, OpenClaw, Copilot, Windsurf und 24+ KI-Coding-Tools. 100% lokal — deine Daten verlassen niemals deinen Rechner.
 
 ## Sofort loslegen — kein Download nötig
 
@@ -68,6 +68,6 @@ Zugriff auf deinen **Projektordner** zum Lesen/Bearbeiten der Konfigurationsdate
 
 ## Unterstützte Tools
 
-24+. Alle LLMs: Claude, GPT-4o/4.1/o1/o3, Gemini 2.5/2.0, DeepSeek V3/R1.
+24+. Alle LLMs: Claude Opus/Sonnet 4.6, GPT-5.4, Gemini 3.1 Pro, DeepSeek V3.2, Qwen 3.6, Kimi K2.5, GLM-5, MiniMax M2.7 und 40+ weitere.
 
 macOS, Windows, Linux, iPad/Mobil via SSH. Python 3.8+, keine externen Abhängigkeiten.

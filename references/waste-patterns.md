@@ -70,21 +70,41 @@ The agent edits multiple files in separate turns when one grouped turn would do.
 
 Same file read 2+ times per session. Content is already in context after the first read.
 
+**Analogy:** Re-reading a page in a book you just read 30 seconds ago.
+
+**Teaching script:** "The AI opened the same file twice in one conversation. It already had the content — reading it again just cost you more money for zero new information."
+
 #### 9. Sleep/poll loops (2-4%)
 
 Waiting with sleep+check instead of using --wait flags or run_in_background.
+
+**Analogy:** Calling the restaurant every 2 minutes to ask if your table is ready, instead of just leaving your number.
+
+**Teaching script:** "The AI kept checking 'is it done yet?' every few seconds instead of just waiting for a notification. Each check re-read your entire conversation."
 
 #### 10. Failed retries (2-4%)
 
 Broken command retried without fixing the underlying issue.
 
+**Analogy:** Pushing a locked door harder instead of looking for the key.
+
+**Teaching script:** "The AI ran a broken command, got an error, and ran the exact same command again hoping for a different result. The error message stayed in the conversation being re-read on every future turn."
+
 #### 11. Schema lookups (1-3%)
 
 Looking up tool schemas the AI already knows.
 
+**Analogy:** Googling your own phone number.
+
+**Teaching script:** "The AI looked up what tools it has access to — but it already knows that. The lookup result entered the conversation and got re-read on every message after."
+
 #### 12. Git ceremony (1-2%)
 
 Consecutive git-only turns that could be chained with `&&`.
+
+**Analogy:** Making four separate phone calls when one would do.
+
+**Teaching script:** "The AI ran `git add`, then `git status`, then `git commit`, then `git push` — four separate messages. `git add -A && git commit -m 'done' && git push` is one message."
 
 ### Tier 4 — Always-On Agents (OpenClaw, etc.)
 
@@ -114,6 +134,18 @@ Use these when explaining "subscription vs reality" in Lesson 1:
 | Cursor | Pro | $20 | ~200 premium requests |
 
 If the tier is unknown, say "Your subscription covers a certain amount of AI usage per month."
+
+## Plain English Glossary
+
+Use these definitions when the user doesn't know a term. Drop them naturally into conversation — don't dump a glossary on them.
+
+- **Token**: Roughly one word. "Hello, how are you?" is about 6 tokens. You pay per token.
+- **Context**: Everything the AI is currently holding in its head — your messages, its responses, any files it read, any command output. It all adds up.
+- **Context window**: The maximum amount the AI can hold at once. Think of it like a whiteboard — when it fills up, old stuff falls off.
+- **Turn / message**: One back-and-forth. You send something → AI responds. That's one turn. Each turn re-reads the entire context.
+- **Instruction file**: A file in your project that tells the AI how to behave (CLAUDE.md, AGENTS.md, .cursorrules, etc.). It gets re-read every single turn.
+- **Cache**: A shortcut the AI provider uses to avoid re-processing text it's already seen. Cheaper than reading fresh, but not free.
+- **Session**: One continuous conversation from start to finish. Starting a new session resets the context — that's why clearing helps.
 
 ## What Tokens Are
 
