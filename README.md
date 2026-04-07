@@ -1,5 +1,7 @@
 # vibecheck
 
+[English](README.md) | [中文](README.zh-CN.md) | [Deutsch](README.de.md)
+
 **Your AI coding tool is burning money you don't see.**
 
 Every message you send, your AI re-reads your *entire* conversation from scratch. Message #50 costs 50x what message #1 cost. That narration where it says "OK, now I'll fix that"? That cost you money and did nothing. Those 500 lines of build logs? Re-read on every. single. future. message.
