@@ -68,7 +68,8 @@ def main():
     for key, info in w.items():
         if info['total_cost'] < 0.01:
             continue
-        risk = "SAFE" if key in ('idle_narration', 'chainable_bash', 'toolsearch') else "REVIEW"
+        risk = "SAFE" if key in ('idle_narration', 'chainable_bash', 'toolsearch', 'git_ceremony',
+                                    'sleep_poll_loops', 'verbose_output', 'context_rot') else "REVIEW"
         fixes.append((key, info, risk))
         print(f"  {key}:")
         print(f"    {info['description']}")
@@ -114,6 +115,15 @@ def main():
         'duplicate_reads': 'Add: "File re-reads banned."',
         'failed_tools': 'Review common failures and add guardrails.',
         'unbatched_edits': 'Add: "Batch multiple Edits into one turn."',
+        'sleep_poll_loops': 'Add: "Use --wait flags or run_in_background, never sleep+poll."',
+        'git_ceremony': 'Add: "Chain git commands with &&."',
+        'context_rot': 'Add: "Use /clear between tasks. Start fresh after ~15 turns."',
+        'verbose_output': 'Add: "Pipe verbose commands to /tmp/. Use --quiet flags. Tail last 50 lines."',
+        'codebase_wandering': 'Add: "Max 3 reads before acting. Use CLAUDE.md project map to skip exploration."',
+        'pingpong_debugging': 'Add: "After 2 failed fixes, stop → read error → think → single fix."',
+        'heartbeat_idle': 'Reduce heartbeat frequency. Check every 30min, not every 5min.',
+        'workspace_bloat': 'Compress SOUL.md/AGENTS.md. Remove verbose personality text AI doesn\'t need.',
+        'memory_accumulation': 'Add session pruning. Archive sessions >50 turns. Use /compact or equivalent.',
     }
 
     if safe_fixes:
@@ -126,6 +136,109 @@ def main():
         print("  NEEDS REVIEW (may change behavior):")
         for i, (key, info, _) in enumerate(review_fixes, 1):
             print(f"    {i}. {fix_labels.get(key, key)} (saves {fmt(info['per_session'])}/session)")
+        print()
+
+    # Platform-specific recommendations
+    platform_mix = data.get('platform_mix', {})
+    if platform_mix:
+        print("-" * 70)
+        print("PLATFORM DETECTION")
+        print("-" * 70)
+        print()
+        primary = list(platform_mix.keys())[0] if platform_mix else 'general'
+        print(f"  Primary stack: {primary}")
+        if len(platform_mix) > 1:
+            others = ', '.join(list(platform_mix.keys())[1:])
+            print(f"  Also detected: {others}")
+        print()
+
+        PLATFORM_TIPS = {
+            'ios': [
+                'XcodeBuildMCP: call directly, skip ToolSearch for build/test',
+                'Simulator boot: reuse running sim, never boot fresh per session',
+                'Swift build + test: chain with &&, never run in parallel (lockfile deadlock)',
+                '.pbxproj edits: build immediately after, revert if broken',
+                'SourceKit false positives: ignore "No such module" silently',
+            ],
+            'android': [
+                'Gradle: chain assembleDebug + test in one && command',
+                'Emulator: reuse running instance, skip boot commands',
+                'ADB: batch install + logcat in one turn',
+            ],
+            'web_frontend': [
+                'npm/yarn: chain install + build + test with &&',
+                'Dev server: start once, don\'t restart per change (HMR handles it)',
+                'node_modules: never explore — use package.json for deps',
+                'ESLint/Prettier: run once at end, not per file',
+                'Bundle size: check once, not after every edit',
+            ],
+            'backend': [
+                'Docker: rebuild only when Dockerfile changes, not every test',
+                'API testing: batch curl/httpie calls, don\'t test endpoint-by-endpoint',
+                'go/cargo test: run full suite once, not individual tests sequentially',
+                'kubectl: batch get/describe commands with &&',
+                'Terraform: plan once, don\'t re-plan after each file edit',
+            ],
+            'python': [
+                'pytest: run once at end with -x (fail-fast), not per-file',
+                'pip install: gather all deps, one install command',
+                'Type checking: mypy once at end, not incremental',
+                'Virtual env: activate once at session start, not per command',
+            ],
+            'devops': [
+                'Terraform output: suppress verbose plan, use -compact-warnings',
+                'kubectl: batch commands, pipe long output to /tmp/ instead of reading inline',
+                'Docker build: use --quiet to suppress layer output',
+                'AWS CLI: batch describe calls, use --query to filter output',
+            ],
+            'general': [
+                'No platform-specific optimizations detected',
+                'Universal rules (narration, batching, chaining) apply',
+            ],
+        }
+
+        tips = PLATFORM_TIPS.get(primary, PLATFORM_TIPS['general'])
+        print(f"  Recommendations for {primary} development:")
+        for i, tip in enumerate(tips, 1):
+            print(f"    {i}. {tip}")
+        print()
+
+    # Reviewer fleet ROI
+    reviewer_roi = data.get('reviewer_roi', {})
+    if reviewer_roi and reviewer_roi.get('sessions_with', 0) > 0:
+        print("-" * 70)
+        print("REVIEWER FLEET ROI")
+        print("-" * 70)
+        print()
+        print(f"  Sessions with reviewers:    {reviewer_roi['sessions_with']} (avg ${reviewer_roi['avg_cost_with']:.2f})")
+        print(f"  Sessions without:           {reviewer_roi['sessions_without']} (avg ${reviewer_roi['avg_cost_without']:.2f})")
+        print(f"  Marginal cost of reviews:   ${reviewer_roi['marginal_cost']:.2f}/session")
+        print(f"  Extra turns per session:    {reviewer_roi['avg_turns_with'] - reviewer_roi['avg_turns_without']:.0f}")
+        print()
+        types = reviewer_roi.get('reviewer_types_seen', {})
+        if types:
+            print(f"  Reviewer types used: {', '.join(f'{k}({v}x)' for k,v in types.items())}")
+            print()
+        print("  Optimization tips:")
+        print("    - Launch all reviewers in parallel (one message, multiple Agent calls)")
+        print("    - Use --wait flag for codex instead of sleep/poll loops")
+        print("    - Triage rule: fix if user-visible, skip code-internal hygiene")
+        print("    - Batch all review fixes into one turn (multiple Edits)")
+        print()
+
+    # Polling/wait analysis
+    polling = data.get('polling_summary', {})
+    if polling.get('total_sleep_poll_turns', 0) > 0:
+        print("-" * 70)
+        print("POLLING / WAIT OVERHEAD")
+        print("-" * 70)
+        print()
+        print(f"  Sleep/poll turns detected:  {polling['total_sleep_poll_turns']} ({polling['avg_per_session']:.1f}/session)")
+        print(f"  Estimated cost:             ${polling['estimated_cost']:.2f}")
+        print()
+        print("  Each poll turn re-reads the full context ($0.01-0.05).")
+        print("  Fix: Use --wait flags where available, or run background tasks")
+        print("  with run_in_background:true and let the system notify on completion.")
         print()
 
     # CLAUDE.md scan
