@@ -52,15 +52,20 @@ Then in any conversation:
 
 This gives you full analysis with your real session data — the CLI can read your logs directly.
 
-### Claude Desktop / Cowork
+### Sandboxed tools (Cowork, Cursor, Windsurf, etc.)
 
-Same install command. Cowork runs in a sandbox that can't see `~/.claude/` (hidden directory). To get your real data, run this once in your regular terminal:
+Most AI coding apps run inside a sandbox — they can see your project files but not your chat history. It's like a guest who can see your living room but not your bedroom.
 
-```bash
-cp -r ~/.claude/projects ~/vibecheck-logs
-```
+vibecheck will ask you to run one command in your regular terminal to copy your chat history to a visible folder. It gives you the right command for your OS automatically:
 
-vibecheck auto-detects `~/vibecheck-logs` and uses your real session data. Without it, you still get the full interactive lesson using industry averages — still useful, just not personalized.
+| OS | Command |
+|---|---|
+| Mac/Linux | `cp -r ~/.claude/projects ~/vibecheck-logs` |
+| Windows | `xcopy /E /I "%APPDATA%\Claude\projects" "%USERPROFILE%\vibecheck-logs"` |
+
+One-time thing. After that, vibecheck finds it automatically.
+
+If you skip this step, vibecheck still works — it teaches you everything using industry averages instead of your personal data.
 
 ### Any other AI coding tool
 

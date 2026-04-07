@@ -1,5 +1,8 @@
 #!/usr/bin/env python3
-"""Cross-platform Claude Code session log finder."""
+"""Cross-platform Claude Code session log finder.
+
+Handles sandboxed environments (Cowork, VMs, containers) by checking
+fallback locations and returning platform-specific setup instructions."""
 import os, sys, platform, glob, json
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
@@ -10,7 +13,7 @@ def find_claude_dir():
     claude_dir = home / ".claude"
     if claude_dir.exists():
         return claude_dir
-    # Windows fallback
+    # Windows
     appdata = os.environ.get("APPDATA")
     if appdata:
         alt = Path(appdata) / "Claude"
@@ -36,12 +39,10 @@ def find_session_files(projects_dir, days=14):
         project_name = project_dir.name
 
         for jsonl in project_dir.glob("*.jsonl"):
-            # Quick check: file modification time
             mtime = datetime.fromtimestamp(jsonl.stat().st_mtime, tz=timezone.utc)
             if mtime < cutoff:
                 continue
 
-            # Get first timestamp from file
             first_ts = None
             try:
                 with open(jsonl) as f:
@@ -81,20 +82,55 @@ def find_session_files(projects_dir, days=14):
     return sorted(sessions, key=lambda s: s['timestamp'])
 
 def find_fallback_dirs():
-    """Check for logs copied to visible locations (for sandbox/Cowork use)."""
+    """Check common visible locations where logs might be copied to.
+
+    Checks: ~/vibecheck-logs, ~/Desktop/vibecheck-logs, ~/Documents/vibecheck-logs,
+    ~/Developer/vibecheck-logs, plus same with 'claude-logs' name.
+    Also checks anywhere a .jsonl file exists in mounted/visible dirs."""
     home = Path.home()
-    candidates = [
-        home / "vibecheck-logs",
-        home / "claude-logs",
-        home / "Developer" / "vibecheck-logs",
-        home / "Developer" / "claude-logs",
-        home / "Documents" / "vibecheck-logs",
-        home / "Documents" / "claude-logs",
-    ]
-    for d in candidates:
-        if d.exists() and any(d.rglob("*.jsonl")):
-            return d
+    names = ['vibecheck-logs', 'claude-logs']
+    parents = [home, home / 'Desktop', home / 'Documents', home / 'Developer']
+
+    for parent in parents:
+        for name in names:
+            d = parent / name
+            if d.exists() and any(d.rglob("*.jsonl")):
+                return d
     return None
+
+def detect_platform():
+    """Detect OS for user-facing instructions."""
+    s = platform.system()
+    if s == 'Darwin':
+        return 'mac'
+    elif s == 'Windows':
+        return 'windows'
+    else:
+        return 'linux'
+
+def get_setup_info():
+    """Return platform-specific setup command and explanation for sandbox users."""
+    plat = detect_platform()
+
+    if plat == 'mac':
+        source = '~/.claude/projects'
+        dest = '~/vibecheck-logs'
+        command = f'cp -r {source} {dest}'
+    elif plat == 'windows':
+        source = '%APPDATA%\\Claude\\projects'
+        dest = '%USERPROFILE%\\vibecheck-logs'
+        command = f'xcopy /E /I "{source}" "{dest}"'
+    else:  # linux
+        source = '~/.claude/projects'
+        dest = '~/vibecheck-logs'
+        command = f'cp -r {source} {dest}'
+
+    return {
+        'platform': plat,
+        'source': source,
+        'dest': dest,
+        'command': command,
+    }
 
 def main():
     days = int(sys.argv[1]) if len(sys.argv) > 1 else 14
@@ -102,32 +138,39 @@ def main():
     # Accept explicit logs dir as second arg: find_logs.py 14 /path/to/logs
     explicit_dir = Path(sys.argv[2]) if len(sys.argv) > 2 else None
 
+    projects_dir = None
+    source_type = 'direct'  # direct | fallback | explicit
+
     if explicit_dir and explicit_dir.exists():
         projects_dir = explicit_dir
+        source_type = 'explicit'
     else:
         claude_dir = find_claude_dir()
         projects_dir = find_projects_dir(claude_dir) if claude_dir else None
 
         if not projects_dir:
-            # Try fallback locations (for sandbox/Cowork)
             fallback = find_fallback_dirs()
             if fallback:
                 projects_dir = fallback
-            else:
-                print(json.dumps({
-                    "error": "no_logs",
-                    "message": "Session logs not found. If running in a sandbox (Claude Desktop/Cowork), run this in your terminal first:",
-                    "setup_command": 'cp -r ~/.claude/projects ~/vibecheck-logs',
-                    "then": "Re-run /vibecheck scan after copying.",
-                    "sessions": [],
-                }))
-                sys.exit(0)
+                source_type = 'fallback'
+
+    if not projects_dir:
+        setup = get_setup_info()
+        print(json.dumps({
+            "error": "no_logs",
+            "platform": setup['platform'],
+            "setup_command": setup['command'],
+            "setup_dest": setup['dest'],
+            "sessions": [],
+            "total_sessions": 0,
+        }, indent=2))
+        sys.exit(0)
 
     sessions = find_session_files(projects_dir, days)
 
     result = {
-        "platform": platform.system(),
-        "claude_dir": str(claude_dir),
+        "platform": detect_platform(),
+        "source_type": source_type,
         "projects_dir": str(projects_dir),
         "days_scanned": days,
         "total_sessions": len(sessions),

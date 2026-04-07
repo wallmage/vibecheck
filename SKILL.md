@@ -43,26 +43,37 @@ Use `primary_tool_name` in all user-facing text. Never say "Claude Code" if they
 python3 SKILL_DIR/scripts/find_logs.py 14 > /tmp/claude_sessions.json
 ```
 
-Read the JSON. Check for `"error": "no_logs"`. This means logs aren't accessible — usually because you're in a sandbox (Claude Desktop / Cowork) that can't see `~/.claude/` (hidden directory).
+Read the JSON. Two possible outcomes:
 
-**If no_logs:** Ask the user to run ONE command in their regular terminal (not in this chat):
-
-```
-cp -r ~/.claude/projects ~/vibecheck-logs
-```
-
-This copies their session logs to a visible folder. Then request to mount `~/vibecheck-logs` (Cowork) or tell the user to re-run. The script auto-checks `~/vibecheck-logs`, `~/claude-logs`, `~/Developer/vibecheck-logs` as fallback locations.
-
-You can also pass an explicit path: `python3 SKILL_DIR/scripts/find_logs.py 14 /path/to/logs`
-
-**Once logs are found (or using averages as fallback):**
+**A) Logs found** (`total_sessions > 0`): Proceed to analyze:
 ```bash
 python3 SKILL_DIR/scripts/analyze_sessions.py /tmp/claude_sessions.json > /tmp/claude_analysis.json
 python3 SKILL_DIR/scripts/explain.py /tmp/claude_analysis.json > /tmp/claude_lesson.json
 ```
 Do NOT show raw output. Read the lesson JSON for all following steps.
 
-**If 0 sessions even after fallback:** Continue with industry averages — the lessons are still valuable. At the end, mention: "For a personalized scan with your real data, run `/vibecheck scan` from Claude Code CLI (terminal)."
+**B) No logs found** (`"error": "no_logs"`): The script returns `setup_command` and `platform` (mac/windows/linux). This typically happens because AI apps like Cowork, Cursor, Windsurf etc. run inside a secure sandbox — they can see your project files, but not your chat history. It's like a guest who can see your living room but not your bedroom — your conversations are in the private part.
+
+**Your job: make it easy.** Tell the user (adapt to their language):
+
+> "To give me your real data, I need your chat history — but it's stored in a private folder I can't peek into from here. No worries, it's a one-time thing. Open your regular terminal app and paste this:"
+
+Then show the `setup_command` from the JSON. It's already platform-specific:
+- **Mac/Linux:** `cp -r ~/.claude/projects ~/vibecheck-logs`
+- **Windows:** `xcopy /E /I "%APPDATA%\Claude\projects" "%USERPROFILE%\vibecheck-logs"`
+
+Then say:
+
+> "Done? Great — now point me to that folder."
+
+If the environment supports folder mounting (Cowork, Cursor, etc.), request to mount `~/vibecheck-logs`. If not, ask the user to provide the path.
+
+Then re-run: `python3 SKILL_DIR/scripts/find_logs.py 14 ~/vibecheck-logs > /tmp/claude_sessions.json`
+
+The script also auto-checks these folders (no manual path needed if they used the default destination):
+`~/vibecheck-logs`, `~/claude-logs`, `~/Desktop/vibecheck-logs`, `~/Documents/vibecheck-logs`, `~/Developer/vibecheck-logs`
+
+**If user doesn't want to / can't copy:** That's fine — continue with industry averages. The lessons are still valuable. At the end, mention they can run `/vibecheck scan` from a terminal app for the full personalized experience.
 
 Note: find_logs.py currently only parses Claude Code JSONL. For other tools, the lesson will use industry averages and explain the patterns generically. Log parsing for Cursor (SQLite), Cline (JSON), etc. is planned.
 
