@@ -1,14 +1,19 @@
 # vibecheck
 
-Vibe coding is fun. Vibe coding is expensive. Let's check.
+**Your AI coding tool is burning money you don't see.**
 
-Works with any AI coding tool. Auto-detects yours, explains your bill in plain language, cuts waste by 30-50%.
+Every message you send, your AI re-reads your *entire* conversation from scratch. Message #50 costs 50x what message #1 cost. That narration where it says "OK, now I'll fix that"? That cost you money and did nothing. Those 500 lines of build logs? Re-read on every. single. future. message.
 
-## What it does
+Most vibe coders waste **50%+** of their AI token budget without knowing it.
 
-vibecheck scans your last 14 days of AI coding sessions to understand how you use your tool — how long your conversations run, how much the AI re-reads, where tokens get wasted. Then it teaches you what's happening in plain language and applies fixes to your instruction file (CLAUDE.md, AGENTS.md, .cursorrules, etc.).
+vibecheck fixes that. It scans your last 14 days of sessions, finds exactly where the waste is, explains it in plain language (no jargon — we'll teach you what tokens are), and applies one-paragraph fixes to your instruction file. Same work gets done. Half the cost.
 
-It identifies 15 waste patterns across 4 tiers. Most vibe coders waste 30-50% of their AI budget without knowing it.
+**Average savings: 50%+ of your token bill.** Works with 24+ AI coding tools. 100% local — your data never leaves your machine.
+
+```bash
+claude install-skill https://github.com/wallmage/vibecheck
+/vibecheck scan
+```
 
 ## Privacy
 
