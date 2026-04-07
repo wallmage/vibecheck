@@ -39,16 +39,30 @@ Use `primary_tool_name` in all user-facing text. Never say "Claude Code" if they
 
 **Step 1: Discover + Analyze (silent)**
 
-First, check if session logs are accessible. Claude Code logs live in `~/.claude/projects/` — a hidden directory. If running in a sandbox (Claude Desktop / Cowork), this directory is NOT accessible and `find_logs.py` will return 0 sessions.
-
 ```bash
 python3 SKILL_DIR/scripts/find_logs.py 14 > /tmp/claude_sessions.json
+```
+
+Read the JSON. Check for `"error": "no_logs"`. This means logs aren't accessible — usually because you're in a sandbox (Claude Desktop / Cowork) that can't see `~/.claude/` (hidden directory).
+
+**If no_logs:** Ask the user to run ONE command in their regular terminal (not in this chat):
+
+```
+cp -r ~/.claude/projects ~/vibecheck-logs
+```
+
+This copies their session logs to a visible folder. Then request to mount `~/vibecheck-logs` (Cowork) or tell the user to re-run. The script auto-checks `~/vibecheck-logs`, `~/claude-logs`, `~/Developer/vibecheck-logs` as fallback locations.
+
+You can also pass an explicit path: `python3 SKILL_DIR/scripts/find_logs.py 14 /path/to/logs`
+
+**Once logs are found (or using averages as fallback):**
+```bash
 python3 SKILL_DIR/scripts/analyze_sessions.py /tmp/claude_sessions.json > /tmp/claude_analysis.json
 python3 SKILL_DIR/scripts/explain.py /tmp/claude_analysis.json > /tmp/claude_lesson.json
 ```
 Do NOT show raw output. Read the lesson JSON for all following steps.
 
-**If 0 sessions found (sandbox / no logs):** Continue with the interactive lessons using industry averages. Still valuable — teaches what tokens are, where money goes, and the 15 waste patterns. At the end, mention: "For a full scan with your personal data, run `/vibecheck scan` from Claude Code CLI (terminal) — it has direct access to your session logs."
+**If 0 sessions even after fallback:** Continue with industry averages — the lessons are still valuable. At the end, mention: "For a personalized scan with your real data, run `/vibecheck scan` from Claude Code CLI (terminal)."
 
 Note: find_logs.py currently only parses Claude Code JSONL. For other tools, the lesson will use industry averages and explain the patterns generically. Log parsing for Cursor (SQLite), Cline (JSON), etc. is planned.
 

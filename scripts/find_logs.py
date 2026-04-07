@@ -80,18 +80,48 @@ def find_session_files(projects_dir, days=14):
 
     return sorted(sessions, key=lambda s: s['timestamp'])
 
+def find_fallback_dirs():
+    """Check for logs copied to visible locations (for sandbox/Cowork use)."""
+    home = Path.home()
+    candidates = [
+        home / "vibecheck-logs",
+        home / "claude-logs",
+        home / "Developer" / "vibecheck-logs",
+        home / "Developer" / "claude-logs",
+        home / "Documents" / "vibecheck-logs",
+        home / "Documents" / "claude-logs",
+    ]
+    for d in candidates:
+        if d.exists() and any(d.rglob("*.jsonl")):
+            return d
+    return None
+
 def main():
     days = int(sys.argv[1]) if len(sys.argv) > 1 else 14
 
-    claude_dir = find_claude_dir()
-    if not claude_dir:
-        print(json.dumps({"error": "Claude directory not found. Is Claude Code installed?"}))
-        sys.exit(1)
+    # Accept explicit logs dir as second arg: find_logs.py 14 /path/to/logs
+    explicit_dir = Path(sys.argv[2]) if len(sys.argv) > 2 else None
 
-    projects_dir = find_projects_dir(claude_dir)
-    if not projects_dir:
-        print(json.dumps({"error": f"No projects directory in {claude_dir}"}))
-        sys.exit(1)
+    if explicit_dir and explicit_dir.exists():
+        projects_dir = explicit_dir
+    else:
+        claude_dir = find_claude_dir()
+        projects_dir = find_projects_dir(claude_dir) if claude_dir else None
+
+        if not projects_dir:
+            # Try fallback locations (for sandbox/Cowork)
+            fallback = find_fallback_dirs()
+            if fallback:
+                projects_dir = fallback
+            else:
+                print(json.dumps({
+                    "error": "no_logs",
+                    "message": "Session logs not found. If running in a sandbox (Claude Desktop/Cowork), run this in your terminal first:",
+                    "setup_command": 'cp -r ~/.claude/projects ~/vibecheck-logs',
+                    "then": "Re-run /vibecheck scan after copying.",
+                    "sessions": [],
+                }))
+                sys.exit(0)
 
     sessions = find_session_files(projects_dir, days)
 

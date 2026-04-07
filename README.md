@@ -54,9 +54,13 @@ This gives you full analysis with your real session data — the CLI can read yo
 
 ### Claude Desktop / Cowork
 
-Same install command, but Cowork runs in a sandbox that can't access `~/.claude/` (hidden directory where logs live). vibecheck handles this gracefully — it'll teach you the concepts using industry averages instead of your personal data. Still useful, just not personalized.
+Same install command. Cowork runs in a sandbox that can't see `~/.claude/` (hidden directory). To get your real data, run this once in your regular terminal:
 
-For the full data-driven experience, run `/vibecheck scan` from the CLI.
+```bash
+cp -r ~/.claude/projects ~/vibecheck-logs
+```
+
+vibecheck auto-detects `~/vibecheck-logs` and uses your real session data. Without it, you still get the full interactive lesson using industry averages — still useful, just not personalized.
 
 ### Any other AI coding tool
 
