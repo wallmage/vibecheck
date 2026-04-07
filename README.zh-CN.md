@@ -1,5 +1,7 @@
 # vibecheck
 
+[English](README.md) | [中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Italiano](README.it.md) | [Português](README.pt-BR.md)
+
 **你的 AI 编程工具正在烧你看不到的钱。**
 
 你发的每条消息，AI 都会从头重新读一遍*整个*对话记录。第 50 条消息的成本是第 1 条的 50 倍。AI 说"好的，我现在来修复这个"？花了你的钱，但什么都没做。那 500 行构建日志？之后的每一条消息都会重新读一遍。
@@ -8,7 +10,7 @@
 
 vibecheck 解决这个问题。它扫描你最近 14 天的会话，精确找出浪费在哪里，用大白话解释（不用技术术语——我们会教你什么是 Token），然后在你的配置文件里加一段话就搞定。活照干，钱省一半。
 
-**平均节省：50%+ 的 Token 账单。** 支持 24+ 种 AI 编程工具。100% 本地运行——你的数据永远不会离开你的电脑。
+**平均节省：50%+ 的 Token 账单。** 支持所有 LLM 模型（Claude、GPT、Gemini、DeepSeek）。支持 Claude Code、OpenClaw、Codex、OpenCode、Cursor、Windsurf 等 24+ 种 AI 编程工具。100% 本地运行——你的数据永远不会离开你的电脑。
 
 ```bash
 claude install-skill https://github.com/wallmage/vibecheck

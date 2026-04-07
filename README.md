@@ -1,6 +1,6 @@
 # vibecheck
 
-[English](README.md) | [中文](README.zh-CN.md) | [Deutsch](README.de.md)
+[English](README.md) | [中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Italiano](README.it.md) | [Português](README.pt-BR.md)
 
 **Your AI coding tool is burning money you don't see.**
 
@@ -10,7 +10,7 @@ Most vibe coders waste **50%+** of their AI token budget without knowing it.
 
 vibecheck fixes that. It scans your last 14 days of sessions, finds exactly where the waste is, explains it in plain language (no jargon — we'll teach you what tokens are), and applies one-paragraph fixes to your instruction file. Same work gets done. Half the cost.
 
-**Average savings: 50%+ of your token bill.** Works with 24+ AI coding tools. 100% local — your data never leaves your machine.
+**Average savings: 50%+ of your token bill.** Supports all LLM models (Claude, GPT, Gemini, DeepSeek). Works with Claude Code, OpenClaw, Codex, OpenCode, Cursor, Windsurf, and 24+ AI coding tools. 100% local — your data never leaves your machine.
 
 ```bash
 claude install-skill https://github.com/wallmage/vibecheck

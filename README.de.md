@@ -1,5 +1,7 @@
 # vibecheck
 
+[English](README.md) | [中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Italiano](README.it.md) | [Português](README.pt-BR.md)
+
 **Dein KI-Coding-Tool verbrennt Geld, das du nicht siehst.**
 
 Jede Nachricht, die du sendest, liest deine KI den *gesamten* Gesprächsverlauf von vorne. Nachricht #50 kostet 50x so viel wie Nachricht #1. Diese Ansage "OK, jetzt werde ich das fixen"? Hat dich Geld gekostet und nichts gebracht. Die 500 Zeilen Build-Logs? Werden bei jeder. einzelnen. zukünftigen. Nachricht. nochmal gelesen.
@@ -8,7 +10,7 @@ Die meisten Vibe-Coder verschwenden **über 50%** ihres KI-Token-Budgets, ohne e
 
 vibecheck behebt das. Es scannt deine letzten 14 Tage, findet genau wo die Verschwendung liegt, erklärt es in einfacher Sprache (kein Fachjargon — wir erklären dir was Tokens sind), und wendet Ein-Absatz-Fixes auf deine Konfigurationsdatei an. Gleiche Arbeit. Halbe Kosten.
 
-**Durchschnittliche Ersparnis: 50%+ deiner Token-Rechnung.** Funktioniert mit 24+ KI-Coding-Tools. 100% lokal — deine Daten verlassen niemals deinen Rechner.
+**Durchschnittliche Ersparnis: 50%+ deiner Token-Rechnung.** Unterstützt alle LLM-Modelle (Claude, GPT, Gemini, DeepSeek). Funktioniert mit Claude Code, OpenClaw, Codex, OpenCode, Cursor, Windsurf und 24+ KI-Coding-Tools. 100% lokal — deine Daten verlassen niemals deinen Rechner.
 
 ```bash
 claude install-skill https://github.com/wallmage/vibecheck
