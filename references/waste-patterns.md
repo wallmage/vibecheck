@@ -112,13 +112,25 @@ Consecutive git-only turns that could be chained with `&&`.
 
 Agent wakes up every 5 minutes, re-reads SOUL.md + full memory, finds nothing to do. A no-op heartbeat costs $0.01-0.10.
 
+**Analogy:** A security guard who walks the entire building every 5 minutes, reads every sign on every door, and reports "nothing happened" every time.
+
+**Teaching script:** "Your agent woke up 288 times today. 280 of those times, nothing had changed — but each wake-up re-read your entire personality file and memory. That's like paying for 280 full inspections when 8 would have been enough."
+
 #### 14. Workspace file bloat (10-20% of always-on cost)
 
 SOUL.md + AGENTS.md + USER.md injected into every wake-up. Typical setup = 35K tokens re-read per message.
 
+**Analogy:** Carrying a 50-page employee handbook everywhere you go — even to get coffee.
+
+**Teaching script:** "Every time your agent wakes up, it re-reads 35,000 words of personality files. Most of that text is coaching and explanation that was useful when you wrote it, but the AI only needs the behavioral rules. Compressing those files can cut wake-up cost by 60%."
+
 #### 15. Memory accumulation (10-15% of always-on cost)
 
 Session history grows without pruning. After 100+ messages, every new message re-reads everything.
+
+**Analogy:** A diary that you have to read cover-to-cover before writing today's entry.
+
+**Teaching script:** "Your agent's memory has grown to 100+ entries. Every new wake-up re-reads ALL of them. It's like reading 3 months of diary entries just to write what happened today. Archiving old entries and keeping a summary would cost a fraction."
 
 ## Subscription Tier Reference
 
@@ -144,7 +156,7 @@ Use these definitions when the user doesn't know a term. Drop them naturally int
 - **Context window**: The maximum amount the AI can hold at once. Think of it like a whiteboard — when it fills up, old stuff falls off.
 - **Turn / message**: One back-and-forth. You send something → AI responds. That's one turn. Each turn re-reads the entire context.
 - **Instruction file**: A file in your project that tells the AI how to behave (CLAUDE.md, AGENTS.md, .cursorrules, etc.). It gets re-read every single turn.
-- **Cache**: A shortcut the AI provider uses to avoid re-processing text it's already seen. Cheaper than reading fresh, but not free.
+- **Cache**: When the AI re-reads your conversation, the provider can skip re-processing parts it's already seen — like a speed-reader skimming pages they've read before. This "cache read" is cheaper than reading fresh, but still not free.
 - **Session**: One continuous conversation from start to finish. Starting a new session resets the context — that's why clearing helps.
 
 ## What Tokens Are

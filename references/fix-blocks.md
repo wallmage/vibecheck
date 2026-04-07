@@ -31,6 +31,18 @@ Cost rules: keep turns dense and useful. Avoid status-only replies when you can 
 - .trae/rules / .qoder/rules / .lingma/rules → plain text rules
 - Others → markdown paragraphs (safe default)
 
+### Example: .cursorrules format
+
+```text
+Every turn should include a tool call or code change. Do not narrate what you are about to do.
+Think and act in the same turn. Batch independent edits into one response.
+Chain shell commands with && instead of running them separately.
+Do not re-read files that are already in context.
+Pipe verbose build output to a temp file. Use --quiet flags when available.
+After 2 failed fixes on the same file, stop, re-read the error, and make one targeted fix.
+Start a new chat between unrelated tasks.
+```
+
 ## Review-required ideas
 
 Propose these separately and explain tradeoffs. Do not add without user approval:

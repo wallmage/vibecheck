@@ -49,6 +49,8 @@ Read the JSON. Key fields: `primary_tool_name`, `instruction_file`, `can_analyze
 
 If `needs_manual_input` is true, ask for the project folder or tool name.
 
+If multiple tools are detected (`installed_tools` has more than one entry with `can_analyze`), mention this: "I see you use [Tool A] and [Tool B]. I'll scan [primary] first — you can run `/vibecheck scan` again for the other."
+
 For current support details, read [references/capabilities.md](references/capabilities.md).
 
 ### 2. Branch based on analysis support
@@ -110,15 +112,21 @@ Use `waste_descriptions`, `worst_day`, `top3_waste`, and `cache_explanations` fr
 
 **Lesson 1 — "What are you actually paying for?"**
 
-Explain subscription vs actual token usage. Key insight: every message re-reads the entire conversation. Message #50 re-reads all 49 previous messages. The AI spends most of your money re-reading, not thinking. Show their tier if known (Claude $20→~$200 API value, $100→~$1,000, $200→~$4,000). End with a question and WAIT.
+Explain subscription vs actual token usage. Key insight: every message re-reads the entire conversation. Message #50 re-reads all 49 previous messages. The AI spends most of your money re-reading, not thinking. Show their tier if known (Claude $20→~$200 API value, $100→~$1,000, $200→~$4,000).
+
+End with: **"Make sense so far? Ask me anything. When you're ready, I'll show you where the money actually goes — it's not where you'd think."** WAIT for response.
 
 **Lesson 2 — "Where your money actually goes"**
 
-Break their bill into three parts: re-reading old messages (50-65%), new content entering context (15-25%), and actual AI responses (10-15%). The punchline: the actual code the AI writes is the smallest part of the bill. Use their busiest day if available. End with a question and WAIT.
+Break their bill into three parts: re-reading old messages (50-65%), new content entering context (15-25%), and actual AI responses (10-15%). The punchline: the actual code the AI writes is the smallest part of the bill. Use their busiest day if available.
+
+End with: **"This is why waste adds up so fast. Want to see the specific things wasting your money? I found [N] patterns."** WAIT for response.
 
 **Lesson 3 — "Your top money wasters"**
 
-Show their top 3 waste patterns (from `top3_waste`) with plain-language analogies. Show total waste cost. End with: "The fix is simple — one paragraph added to your [instruction_file]. Same work, fewer wasted messages. Want me to set it up?" WAIT.
+Show their top 3 waste patterns (from `top3_waste`) with plain-language analogies. Show total waste cost.
+
+End with: **"The fix is simple — one paragraph added to your [instruction_file_name]. Same work gets done, fewer wasted messages. Takes about a minute. Want me to set it up?"** WAIT for response.
 
 ### 5. Report + fixes
 
@@ -128,7 +136,11 @@ Generate the report when analysis data exists:
 python3 SKILL_DIR/scripts/report.py /tmp/vibecheck_analysis.json /path/to/instruction_file
 ```
 
-Then propose edits to the detected instruction file. Adapt format to the tool:
+Then propose edits to the detected instruction file.
+
+**If no instruction file exists:** Offer to create one. "You don't have a [CLAUDE.md / .cursorrules / etc.] yet — that's the file your AI reads for project-specific rules. Want me to create one with the cost-saving rules? It's just a text file in your project root." If they agree, create the appropriate file for their tool with the fix block below.
+
+Adapt format to the tool:
 - CLAUDE.md / AGENTS.md → markdown paragraphs
 - .cursorrules / .windsurfrules / .clinerules → one rule per line
 - SOUL.md → personality/rules section
