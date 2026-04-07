@@ -205,26 +205,30 @@ If the user is cautious about the strong rules, offer the softer alternative fro
 
 #### Compression (typically step 3)
 
-Compress the detected instruction file when it's large enough to matter:
+Compress the detected instruction file when it's large enough to matter. This uses the lossless prompt compressor — a 4-pass process that strips formatting, deduplicates facts, removes human-only scaffolding, and optionally rewrites in telegram shorthand.
+
+Read the full compressor operating manual: [references/compressor.md](references/compressor.md)
+Read the 23-technique catalog with before/after examples: [references/compression-techniques.md](references/compression-techniques.md)
+
+**Quick start:**
 
 ```bash
 python3 SKILL_DIR/scripts/measure.py /path/to/instruction_file
 python3 SKILL_DIR/scripts/strip_markdown.py /path/to/instruction_file /path/to/instruction_file.working
 ```
 
-Four sub-passes — present each separately, show the diff, and WAIT for approval:
-1. **Strip markdown** (automatic, lossless) — remove formatting cruft. Show reduction, apply without asking.
-2. **Creative compression** (needs approval) — dedup, compress code blocks, trim verbose rationale.
-3. **Remove human-only content** (needs approval) — installation guides, coaching, verbose WHY explanations.
-4. **Telegram mode** (optional, explicit permission only) — rewrite in shorthand fragments. Only offer if user asks or if target line count requires it.
+**Three modes** (default to Strict Lossless):
+- **Strict Lossless** (default): Pass 1 + approved Pass 2. Human-readable, all facts preserved.
+- **AI-Lossless**: + Pass 3. Remove human-only scaffolding (tutorials, coaching, schedules).
+- **AI-Only**: + Pass 4. Ultra-dense telegram rewrite. Only if user explicitly wants it.
 
-**Preservation rules — these are non-negotiable:**
-- Trigger patterns, shell commands, file paths — exact syntax, no abbreviation
-- Migration tables — compress format but keep EVERY row AND every note with behavioral meaning (e.g., "Single-arg compiles but wrong semantics" warns about a subtle bug; "Chrome only" IS the rule)
-- Concurrency annotations (nonisolated, @concurrent, Sendable, actor isolation)
-- Platform/region constraints (e.g., "unavailable China")
-- Decision references (e.g., "DEC-003") — these link to design decisions
-- When in doubt, keep it. Dropping a behavioral rule silently is worse than keeping 10 extra lines.
+**Four sub-passes** — present each separately, show the diff, and WAIT for approval:
+1. **Pass 1: Mechanical** (automatic) — strip markdown formatting, convert tables to semicolons, merge short bullet lists. Show reduction, apply without asking.
+2. **Pass 2: Fact-preserving** (needs approval) — dedup repeated facts with cross-references, compress code blocks to inline descriptions, trim verbose rationales. Propose each as a numbered list with estimated savings.
+3. **Pass 3: High-fidelity** (needs approval) — remove tutorials, coaching, motivational content, validation tables that duplicate specs. Decision test: "If I remove this, will the AI produce worse code?" If no → candidate.
+4. **Pass 4: Telegram** (explicit permission only) — full rewrite in shorthand fragments. Only for AI-only documents.
+
+**Always report** word count and estimated token reduction after each pass. Finish with a summary table showing Original → Pass 1 → Pass 2 → etc.
 
 ### 6. Before/after comparison
 
@@ -255,3 +259,5 @@ End with: "Run `/vibecheck scan` again in 1-2 weeks to see your ACTUAL savings. 
 - Capabilities and support matrix: [references/capabilities.md](references/capabilities.md)
 - Waste pattern explanations and analogies: [references/waste-patterns.md](references/waste-patterns.md)
 - Alternative (softer) fix blocks: [references/fix-blocks.md](references/fix-blocks.md)
+- Instruction file compressor (full operating manual): [references/compressor.md](references/compressor.md)
+- Compression technique catalog (23 techniques with examples): [references/compression-techniques.md](references/compression-techniques.md)
