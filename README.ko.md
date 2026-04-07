@@ -28,6 +28,9 @@ claude install-skill https://github.com/wallmage/vibecheck
 /vibecheck scan
 ```
 
+**샌드박스 도구 (Cowork 등):**
+> https://github.com/wallmage/vibecheck 를 /tmp/vibecheck 에 클론하고, SKILL.md를 읽고, /vibecheck scan 을 실행해주세요
+
 ### "스킬"이란?
 
 스킬은 AI를 위한 레시피 카드와 같습니다. AI를 변경하거나 컴퓨터에 아무것도 설치하지 않습니다. "낭비 패턴 찾는 법, 설명하는 법, 고치는 법"이라는 지침을 줄 뿐. 언제든 제거 가능.

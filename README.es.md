@@ -28,6 +28,9 @@ claude install-skill https://github.com/wallmage/vibecheck
 /vibecheck scan
 ```
 
+**Herramientas sandbox (Cowork, etc.):**
+> Clona https://github.com/wallmage/vibecheck en /tmp/vibecheck, lee SKILL.md, y ejecuta /vibecheck scan
+
 ### ¿Qué es un "skill"?
 
 Un skill es como una receta para tu IA. No modifica tu IA ni instala nada. Solo le da instrucciones — "cómo encontrar patrones de desperdicio, explicarlos y corregirlos." Se puede eliminar en cualquier momento.

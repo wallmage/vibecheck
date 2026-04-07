@@ -28,6 +28,9 @@ claude install-skill https://github.com/wallmage/vibecheck
 /vibecheck scan
 ```
 
+**Sandbox-Tools (Cowork etc.):**
+> Klone https://github.com/wallmage/vibecheck nach /tmp/vibecheck, lies SKILL.md, und führe /vibecheck scan aus
+
 ### Was ist ein „Skill"?
 
 Ein Skill ist wie ein Rezept für deine KI. Er verändert deine KI nicht und installiert nichts auf deinem Computer. Er gibt deiner KI nur Anweisungen — „so findest du Verschwendungsmuster, so erklärst du sie, so behebst du sie." Jederzeit entfernbar.

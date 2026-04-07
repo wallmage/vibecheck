@@ -109,33 +109,12 @@ def detect_platform():
         return 'linux'
 
 def get_setup_info():
-    """Return setup info for sandbox users.
-
-    The AI will construct the full command using its known SKILL_DIR path.
-    We return the script name and a fallback one-liner for each platform."""
+    """Return setup info for sandbox users."""
     plat = detect_platform()
-    dest = '~/vibecheck-logs'
-
-    # Fallback one-liner if AI can't construct the export_logs.py path
-    # Uses Python (required for vibecheck anyway) — works on all platforms
-    one_liner = (
-        'python3 -c "'
-        'import shutil;from pathlib import Path;from datetime import datetime,timedelta,timezone;'
-        'src=Path.home()/\\".claude\\"/\\"projects\\";dst=Path.home()/\\"vibecheck-logs\\";'
-        'cutoff=datetime.now(timezone.utc)-timedelta(days=14);'
-        '[((dst/f.relative_to(src).parent).mkdir(parents=True,exist_ok=True),'
-        'shutil.copy2(f,dst/f.relative_to(src)))'
-        'for f in src.rglob(\\"*.jsonl\\")'
-        'if datetime.fromtimestamp(f.stat().st_mtime,tz=timezone.utc)>cutoff];'
-        'print(f\\"Done! Logs copied to {dst}\\")'
-        '"'
-    )
-
     return {
         'platform': plat,
         'export_script': 'scripts/export_logs.py',
-        'dest': dest,
-        'fallback_command': one_liner,
+        'dest': '~/vibecheck-logs',
     }
 
 def main():
@@ -167,7 +146,6 @@ def main():
             "platform": setup['platform'],
             "export_script": setup['export_script'],
             "dest": setup['dest'],
-            "fallback_command": setup['fallback_command'],
             "sessions": [],
             "total_sessions": 0,
         }, indent=2))

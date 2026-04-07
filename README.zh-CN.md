@@ -28,6 +28,9 @@ claude install-skill https://github.com/wallmage/vibecheck
 /vibecheck scan
 ```
 
+用沙盒工具（Cowork 之类）的话：
+> 把 https://github.com/wallmage/vibecheck 克隆到 /tmp/vibecheck，读 SKILL.md，然后运行 /vibecheck scan
+
 ### skill 是啥？
 
 一份攻略。不改你的 AI，不装东西。就是一个文本文件，写着"怎么找浪费、怎么解释、怎么修"。AI 读完照做。不想要了随时删。

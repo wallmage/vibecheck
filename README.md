@@ -28,6 +28,9 @@ claude install-skill https://github.com/wallmage/vibecheck
 /vibecheck scan
 ```
 
+If you're using a sandbox tool (Cowork, etc.):
+> Clone https://github.com/wallmage/vibecheck to /tmp/vibecheck, read SKILL.md, and run /vibecheck scan
+
 ### Wait, what's a skill?
 
 A recipe card for your AI. It doesn't modify anything or install anything. It's a text file that says "here's how to find waste, here's how to explain it, here's how to fix it." Your AI reads it and follows the instructions. Delete it whenever you want.

@@ -28,6 +28,9 @@ claude install-skill https://github.com/wallmage/vibecheck
 /vibecheck scan
 ```
 
+**沙盒工具（Cowork 等）：**
+> 把 https://github.com/wallmage/vibecheck 克隆到 /tmp/vibecheck，讀取 SKILL.md，然後執行 /vibecheck scan
+
 ### 什麼是「技能」？
 
 技能就像給你的 AI 一張食譜。它不會修改你的 AI，也不會在你電腦上安裝任何東西。它只是給你的 AI 一組指令——「怎麼找浪費模式、怎麼解釋、怎麼修復」。你的 AI 讀了食譜就照著做。隨時可以移除。

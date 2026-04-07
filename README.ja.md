@@ -28,6 +28,9 @@ claude install-skill https://github.com/wallmage/vibecheck
 /vibecheck scan
 ```
 
+**サンドボックスツール（Coworkなど）：**
+> https://github.com/wallmage/vibecheck を /tmp/vibecheck にクローンし、SKILL.mdを読んで、/vibecheck scan を実行してください
+
 ### 「スキル」とは？
 
 スキルはAIへのレシピカードのようなものです。AIを変更したり、コンピュータに何かをインストールしたりしません。「無駄パターンの見つけ方、説明の仕方、修正の仕方」という指示を渡すだけ。いつでも削除できます。

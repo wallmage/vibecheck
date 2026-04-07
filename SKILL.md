@@ -8,6 +8,20 @@ Supports 24+ tools: Claude Code, Cursor, Codex, Windsurf, Cline, Roo Code, Kilo 
 
 Works on macOS, Windows, Linux. Works from iPad/mobile via SSH.
 
+## Setup (read this first)
+
+**SKILL_DIR** = the directory containing this file. Every script path below uses `SKILL_DIR/scripts/`.
+
+**If you're already installed** (e.g., via `claude install-skill`): SKILL_DIR is wherever the skill was installed. You're good — skip to Commands.
+
+**If you cloned this repo** (sandbox tools like Cowork, or manual install): SKILL_DIR is the clone path. Use it directly — don't try to copy files to `~/.claude/skills/` or any other location. Just run scripts from where they are.
+
+**Quick setup for sandbox/VM tools:**
+```bash
+git clone https://github.com/wallmage/vibecheck /tmp/vibecheck
+```
+Then SKILL_DIR = `/tmp/vibecheck`. That's it. Don't move files, don't install anything — run commands from `/tmp/vibecheck/scripts/`.
+
 ## Privacy
 
 All data stays on the user's machine. No server, no uploads, no telemetry. The scripts read local log files, analyze in memory, print to screen. Stress this when onboarding — users worry about their code and conversations being sent somewhere.
@@ -68,33 +82,31 @@ python3 SKILL_DIR/scripts/explain.py /tmp/claude_analysis.json > /tmp/claude_les
 ```
 Do NOT show raw output. Read the lesson JSON for all following steps.
 
-**B) No logs found** (`"error": "no_logs"`): The script returns `setup_command` and `platform` (mac/windows/linux). This typically happens because AI apps like Cowork, Cursor, Windsurf etc. run inside a secure sandbox — they can see your project files, but not your chat history. It's like a guest who can see your living room but not your bedroom — your conversations are in the private part.
+**B) No logs found** (`"error": "no_logs"`): Sandbox environment. The JSON includes `platform` (mac/windows/linux).
 
-**Your job: make it easy.** Tell the user (adapt to their language):
+Explain briefly (2-3 sentences, adapt to their language):
+> Your AI chat logs contain timestamps, token counts, and tool calls — that's what I need to find where your money goes. I can't access them directly because this tool runs in a virtual machine that's walled off from your personal files. But we can copy just the last 14 days over — takes 5 seconds.
 
-> "I can teach you about AI costs right now — but for a personalized scan with YOUR real numbers, I need your chat history. It's stored in a private folder I can't peek into from here — like a guest who can see your living room but not your bedroom. No worries, it takes 5 seconds. Open your regular terminal app (Terminal on Mac, Command Prompt on Windows) and paste this one line:"
+Then show exactly ONE command based on `platform`. Do NOT show multiple commands or alternatives. Do NOT show commands for other platforms.
 
-Construct the command using SKILL_DIR:
+If `platform` is `mac` or `linux`:
 ```
 python3 SKILL_DIR/scripts/export_logs.py
 ```
+Tell them: "Open Terminal, paste this, hit Enter."
 
-This copies ONLY the last 14 days of logs (~20-50 MB, not the full history). It prints "Done!" when finished. Works on Mac, Windows, and Linux — same command.
+If `platform` is `windows`:
+```
+python SKILL_DIR/scripts/export_logs.py
+```
+Tell them: "Open Command Prompt, paste this, hit Enter."
 
-If you can't determine SKILL_DIR, use the `fallback_command` from the JSON output instead.
+Then: "Tell me when it's done — or skip this step and I'll use typical numbers instead (still gets you 80% of the benefit)."
 
-Then say:
+WAIT for user response. ONE command, ONE screen. No fallbacks, no one-liners, no alternatives.
 
-> "Done? Great — now point me to that folder (it's in your home folder, called vibecheck-logs)."
-
-If the environment supports folder mounting (Cowork, Cursor, etc.), request to mount `~/vibecheck-logs`. If not, ask the user to provide the path.
-
-Then re-run: `python3 SKILL_DIR/scripts/find_logs.py 14 ~/vibecheck-logs > /tmp/claude_sessions.json`
-
-The script auto-checks these folders (no manual path needed if they used the default destination):
-`~/vibecheck-logs`, `~/claude-logs`, `~/Desktop/vibecheck-logs`, `~/Documents/vibecheck-logs`, `~/Developer/vibecheck-logs`
-
-**If user doesn't want to copy:** That's fine — say "No problem! I'll teach you the concepts using typical numbers instead. You can always come back later for the personalized scan." Continue with industry averages.
+If they confirm done: mount or ask for `~/vibecheck-logs`, then re-run `python3 SKILL_DIR/scripts/find_logs.py 14 ~/vibecheck-logs > /tmp/claude_sessions.json`.
+If they want to skip: proceed to Step 2 with industry averages + instruction file optimization.
 
 Note: find_logs.py currently only parses Claude Code JSONL. For other tools, the lesson will use industry averages and explain the patterns generically. Log parsing for Cursor (SQLite), Cline (JSON), etc. is planned.
 
