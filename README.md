@@ -12,61 +12,45 @@ vibecheck fixes that. It scans your last 14 days of sessions, finds exactly wher
 
 **Average savings: 50%+ of your token bill.** Supports all LLM models (Claude, GPT, Gemini, DeepSeek). Works with Claude Code, OpenClaw, Codex, OpenCode, Cursor, Windsurf, and 24+ AI coding tools. 100% local — your data never leaves your machine.
 
+## Get started — nothing to download
+
+vibecheck is a **skill** — a set of instructions your AI coding tool learns from. You don't download or install any software. You just give your AI a link, and it teaches itself how to optimize your costs. One message, done.
+
+**Copy this into your AI coding tool** (Claude Code, Cursor, Codex, Windsurf, Cline — any of them):
+
+> Install the vibecheck skill from https://github.com/wallmage/vibecheck and run /vibecheck scan
+
+That's it. Your AI reads the skill, scans your last 14 days, and walks you through everything.
+
+**Or if you prefer the CLI:**
 ```bash
 claude install-skill https://github.com/wallmage/vibecheck
 /vibecheck scan
 ```
 
-## Privacy
+### What's a "skill"?
 
-**Your data never leaves your machine.** vibecheck is a set of Python scripts that run 100% locally. There is no server, no API, no telemetry, no analytics, no phoning home. The author cannot collect your data — it's technically impossible. The code is open source; you can read every line.
+A skill is like a recipe card for your AI. It doesn't change your AI or install anything on your computer. It just gives your AI a set of instructions — "here's how to find waste patterns, here's how to explain them, here's how to fix them." Your AI reads the recipe and follows it. You can remove it anytime.
 
-The scan reads your local session logs (JSONL files on your disk), analyzes them in memory, and prints results to your screen. Nothing is uploaded, nothing is sent anywhere, nothing is stored outside your machine except a small snapshot file in `~/.vibecheck/` for tracking your progress over time.
+### Coding tools vs chat tools
 
-## Install
+**Coding tools** (Claude Code CLI, Claude Desktop Builder/Code mode, Cursor, Codex, Windsurf, Cline) run directly on your machine. They can read your session logs and give you a full personalized scan with your real numbers. Best experience.
 
-### Option A: AI coding tools (full experience)
+**Chat/sandbox tools** (Claude Cowork, chat-only modes, browser-based tools) run in a sandbox — they can see your project files but not your chat history. Like a guest who can see your living room but not your bedroom.
 
-If you use an AI coding tool like **Claude Code CLI**, **Cursor**, **Windsurf**, **Codex**, or similar — install vibecheck as a skill. These tools run directly on your machine and can read your session logs, so you get the full personalized scan.
+vibecheck still works in two ways:
 
-**Claude Code CLI:**
-```bash
-claude install-skill https://github.com/wallmage/vibecheck
-```
+1. **Without a scan (80% of the benefit):** Optimizes your instruction file — trims your CLAUDE.md, adds cost-saving rules, compresses bloated prompts. These fixes alone cut 20-40% of waste. No log access needed.
 
-**Claude Code in Desktop app (Builder/Code mode):**
-Same install command. The Desktop app's coding modes (Builder, Code) run with full file access, just like the CLI. You get the same full scan experience.
-
-**Other AI coding tools (Cursor, Codex, Windsurf, Cline, etc.):**
-Tell your AI:
-> Install the vibecheck skill from https://github.com/wallmage/vibecheck and run `/vibecheck scan`
-
-Then run:
-```
-/vibecheck scan
-```
-
-### Option B: Non-coding environments (Cowork, chat-only modes)
-
-Tools like **Claude Cowork**, chat-only modes, or browser-based AI tools run inside a sandbox — they can see your project files but not your chat history. Think of it like a guest who can see your living room but not your bedroom — your conversations are in the private part.
-
-**vibecheck still works in two ways:**
-
-1. **Without a scan (80% of the benefit):** Even without reading your logs, vibecheck can still optimize your instruction file — trimming your CLAUDE.md, adding cost-saving rules, compressing bloated prompts. These fixes alone cut 20-40% of waste because they reduce the amount the AI re-reads every single message. Just run `/vibecheck compress` or tell the AI to apply the optimization rules.
-
-2. **With a scan (full benefit):** To get personalized analysis with your real numbers, vibecheck will ask you to paste one command in your regular terminal app. This copies only the last 14 days of logs (~20-50 MB) to a folder the sandbox can see:
-
-   ```
-   python3 path/to/vibecheck/scripts/export_logs.py
-   ```
-
-   vibecheck gives you the exact command — just paste it. Takes 5 seconds. Then point the tool to `~/vibecheck-logs` and you get the full scan.
+2. **With a scan (full benefit):** vibecheck asks you to paste one command in your terminal. Copies only the last 14 days of logs (~20-50 MB, not your full history). Takes 5 seconds, then you get the full personalized analysis.
 
 ### Permissions
 
-vibecheck needs access to your **project folder** to read and edit your instruction file (CLAUDE.md, AGENTS.md, .cursorrules, SOUL.md, etc.). It will ask for your approval before making any changes. You can review every proposed edit and accept or reject individually.
+vibecheck needs access to your **project folder** to read and edit your instruction file (CLAUDE.md, AGENTS.md, .cursorrules, SOUL.md, etc.). It asks before every change. You review and approve each edit individually.
 
-For the full scan, it also reads your session logs (the JSONL files where your AI tool saves conversation history). These stay on your machine — see [Privacy](#privacy).
+## Privacy
+
+**Your data never leaves your machine.** vibecheck is a set of Python scripts that run 100% locally. No server, no API, no telemetry, no analytics, no phoning home. The author cannot collect your data — it's technically impossible. The code is open source; you can read every line.
 
 ## Commands
 

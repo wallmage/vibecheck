@@ -4,42 +4,67 @@
 
 **Tu herramienta de código IA está quemando dinero que no ves.**
 
-Cada mensaje que envías, tu IA relee *toda* la conversación desde cero. El mensaje #50 cuesta 50x lo que costó el mensaje #1. Esa narración "OK, ahora voy a arreglar eso"? Te costó dinero y no hizo nada. Esas 500 líneas de logs de build? Se releen en cada. futuro. mensaje.
+Cada mensaje que envías, tu IA relee *toda* la conversación desde cero. El mensaje #50 cuesta 50x lo que costó el #1. Esa narración "OK, ahora voy a arreglar eso"? Te costó dinero y no hizo nada. Esas 500 líneas de logs? Se releen en cada futuro mensaje.
 
-La mayoría de los vibe coders desperdician **más del 50%** de su presupuesto de tokens IA sin saberlo.
+La mayoría de los vibe coders desperdician **más del 50%** de su presupuesto de tokens sin saberlo.
 
-vibecheck lo arregla. Escanea tus últimos 14 días de sesiones, encuentra exactamente dónde está el desperdicio, lo explica en lenguaje claro (sin jerga — te enseñamos qué son los tokens), y aplica correcciones de un párrafo a tu archivo de configuración. Mismo trabajo. Mitad de costo.
+vibecheck lo arregla. Escanea tus últimos 14 días, encuentra el desperdicio, lo explica en lenguaje claro, y aplica correcciones de un párrafo. Mismo trabajo. Mitad de costo.
 
-**Ahorro promedio: 50%+ de tu factura de tokens.** Soporta todos los modelos LLM. Funciona con Claude Code, OpenClaw, Codex, OpenCode y 24+ herramientas de código IA. 100% local — tus datos nunca salen de tu máquina.
+**Ahorro promedio: 50%+ de tu factura de tokens.** Soporta todos los modelos LLM (Claude, GPT, Gemini, DeepSeek). Funciona con Claude Code, OpenClaw, Codex, OpenCode, Cursor, Windsurf y 24+ herramientas. 100% local — tus datos nunca salen de tu máquina.
 
+## Empieza ya — nada que descargar
+
+vibecheck es un **skill** — un conjunto de instrucciones que tu herramienta de código IA aprende. No descargas ni instalas ningún software. Dale un enlace a tu IA y aprende sola a optimizar tus costos. Un mensaje y listo.
+
+**Copia esto en tu herramienta de código IA** (Claude Code, Cursor, Codex, Windsurf, Cline):
+
+> Instala el skill vibecheck desde https://github.com/wallmage/vibecheck y ejecuta /vibecheck scan
+
+Eso es todo. Tu IA lee el skill, escanea 14 días y te explica todo.
+
+**O por CLI:**
 ```bash
 claude install-skill https://github.com/wallmage/vibecheck
 /vibecheck scan
 ```
 
+### ¿Qué es un "skill"?
+
+Un skill es como una receta para tu IA. No modifica tu IA ni instala nada. Solo le da instrucciones — "cómo encontrar patrones de desperdicio, explicarlos y corregirlos." Se puede eliminar en cualquier momento.
+
+### Herramientas de código vs herramientas de chat
+
+**Herramientas de código** (Claude Code CLI, Cursor, Codex etc.): acceso directo a logs. Escaneo completo personalizado.
+
+**Herramientas chat/sandbox** (Cowork etc.): ven archivos del proyecto pero no el historial de chat.
+
+1. **Sin escaneo (80% del beneficio):** Optimiza el archivo de config. Sin necesidad de logs.
+2. **Con escaneo (100%):** Un comando en tu terminal — solo los últimos 14 días (~20-50 MB).
+
+### Permisos
+
+Necesita acceso a tu **carpeta de proyecto** para leer/editar el archivo de configuración. Pide permiso antes de cada cambio.
+
 ## Privacidad
 
-**Tus datos nunca salen de tu máquina.** Sin servidor, sin API, sin telemetría. Es técnicamente imposible que el autor recopile tus datos. El código es completamente open source.
-
-## Instalación
-
-**Herramientas de código IA (experiencia completa):** `claude install-skill https://github.com/wallmage/vibecheck`, luego `/vibecheck scan`.
-
-**Entornos sandbox (Cowork, etc.):** Incluso sin escanear logs obtienes el 80% del beneficio — compresión del archivo de config, reglas de ahorro. Para el escaneo completo, pega un comando en tu terminal (solo últimos 14 días, ~20-50 MB).
+**Tus datos nunca salen de tu máquina.** Sin servidor, sin API, sin telemetría. Código completamente open source.
 
 ## Comandos
 
-- `/vibecheck scan` — Educación interactiva + diagnóstico completo + correcciones
+- `/vibecheck scan` — Educación interactiva + diagnóstico + correcciones
 - `/vibecheck explain` — Solo educación
-- `/vibecheck compress` — Comprimir archivo de config (25-50% más pequeño)
+- `/vibecheck compress` — Comprimir archivo de config (25-50%)
 - `/vibecheck monitor` — Comparación semanal + alertas
 
 ## 15 patrones de desperdicio
 
-Narración inactiva, degradación de contexto, debugging ping-pong, salida verbosa, comandos sin encadenar, exploración del codebase, ediciones sin agrupar, relecturas de archivos, bucles sleep/poll, reintentos fallidos, búsquedas de schema, ceremonia Git, y para agentes 24/7: heartbeats inactivos, bloat del workspace, acumulación de memoria.
+**Nivel 1 (70-80%):** Narración inactiva, degradación de contexto, debugging ping-pong
+**Nivel 2 (15-20%):** Salida verbosa, comandos sin encadenar, exploración del codebase, ediciones sin agrupar
+**Nivel 3 (5-10%):** Relecturas, bucles sleep/poll, reintentos fallidos, búsquedas de schema, ceremonia Git
+**Nivel 4 — Agentes 24/7:** Heartbeats inactivos, bloat del workspace, acumulación de memoria
 
 ## Herramientas soportadas
 
-24+: Claude Code, Cursor, Codex, Windsurf, Cline, OpenClaw, CodeBuddy, TRAE, Kimi Code y más.
+24+. Todos los LLM: Claude, GPT-4o/4.1/o1/o3, Gemini 2.5/2.0, DeepSeek V3/R1.
 
-Todos los LLM: Claude (Opus/Sonnet/Haiku), GPT-4o/4.1/o1/o3, Gemini 2.5/2.0, DeepSeek V3/R1.
+macOS, Windows, Linux, iPad/móvil via SSH. Python 3.8+, sin dependencias externas.
