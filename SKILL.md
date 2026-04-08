@@ -132,13 +132,13 @@ End with: **"The fix is simple — one paragraph added to your [instruction_file
 
 This is the core of vibecheck — a step-by-step guided optimization where the user controls every change.
 
-**Always backup first.** Before touching the instruction file:
+**Always backup first.** Before touching the instruction file, create a backup:
 ```bash
 cp /path/to/instruction_file /path/to/instruction_file.vibecheck-backup
 ```
 Tell the user: "I've backed up your [file name] — you can revert anytime with `cp [file].vibecheck-backup [file]`."
 
-**If no instruction file exists:** Offer to create one. "You don't have a [CLAUDE.md / .cursorrules / etc.] yet — that's the file your AI reads for project-specific rules. Want me to create one with the cost-saving rules? It's just a text file in your project root."
+**If no instruction file exists:** Offer to create one. "You don't have a [CLAUDE.md / .cursorrules / etc.] yet — that's the file your AI reads for project-specific rules. Want me to create one with the cost-saving rules? It's just a text file in your project root." Tell the user they can simply delete the file if they don't want it.
 
 **Generate the analysis report** (for your reference, not shown raw to user):
 ```bash
@@ -160,16 +160,17 @@ If a pattern has near-zero cost for this user, skip it entirely. If only 2 steps
 
 2. **Show projected savings** — "These patterns cost you $X.XX/session. Fixing them would bring your average from $Y.YY to $Z.ZZ/session (~$NNN/month savings at your pace)." Use real numbers from the analysis.
 
-3. **Show the proposed change** — display the exact diff of what will be added/changed/removed in their instruction file. Format it clearly:
+3. **Show the proposed change** — display the exact lines that will be added, changed, or removed. Use `+` for additions and `-` for removals so it reads like a diff:
    ```
    I'd add this near the top of your [file name]:
    
-   + **Cost rules:** No turn without tool call. No narration/status/"now I'll…". Think → act same turn.
-   + Verbose output: pipe build/test/install to /tmp/, use --quiet flags, tail -50 max.
+   + Every turn should include a tool call or code change. Do not narrate what you are about to do.
+   + Think and act in the same turn. Batch independent edits into one response.
+   + Pipe verbose build output to a temp file. Use --quiet flags when available.
    ```
-   Or for compression: show what's being removed and why it's safe.
+   For compression, show what's being removed with `-` prefix and why it's safe to remove.
 
-4. **Ask permission** — "Want me to apply this? (You can always revert from the backup.)" WAIT for response.
+4. **Ask permission explicitly** — end each step with a direct question: "Want me to apply this change? (You can always revert from the backup.)" Then STOP and WAIT for the user's response. Do not continue to the next step until the user replies.
 
 5. **Handle the response:**
    - **Yes** → apply the change, confirm, move to next step.
@@ -207,10 +208,11 @@ If the user is cautious about the strong rules, offer the softer alternative fro
 
 Compress the detected instruction file when it's large enough to matter. This uses the lossless prompt compressor — a 4-pass process that strips formatting, deduplicates facts, removes human-only scaffolding, and optionally rewrites in telegram shorthand.
 
-Read the full compressor operating manual: [references/compressor.md](references/compressor.md)
-Read the 23-technique catalog with before/after examples: [references/compression-techniques.md](references/compression-techniques.md)
+Before starting, read these reference files for the technique catalog and detailed rules:
+- [references/compressor.md](references/compressor.md) — full compressor operating manual (modes, preservation rules, edge cases)
+- [references/compression-techniques.md](references/compression-techniques.md) — 23 techniques with before/after examples
 
-**Quick start:**
+**Run these scripts** (do not skip — they handle Pass 1 mechanically and establish the baseline):
 
 ```bash
 python3 SKILL_DIR/scripts/measure.py /path/to/instruction_file
