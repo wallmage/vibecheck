@@ -1,3 +1,3 @@
 display_name: Vibecheck
-short_description: Analyze AI coding spend, explain token waste, and tighten instruction files.
+short_description: Find where your AI coding budget actually goes and cut the waste.
 default_prompt: Run /vibecheck scan and help me reduce waste in my AI coding workflow.
