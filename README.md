@@ -1,5 +1,10 @@
 # vibecheck
 
+[![Runs local](https://img.shields.io/badge/runs-local%20only-1f6feb)](https://github.com/wallmage/vibecheck)
+[![Multi-tool](https://img.shields.io/badge/multi--tool-24%2B%20tools-0a7f5a)](https://github.com/wallmage/vibecheck)
+[![Privacy](https://img.shields.io/badge/privacy-no%20telemetry-6f42c1)](https://github.com/wallmage/vibecheck)
+[![Sister skill](https://img.shields.io/badge/sister%20skill-handoff-f97316)](https://github.com/wallmage/handoff)
+
 [English](README.md) | [中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Italiano](README.it.md) | [Português](README.pt-BR.md)
 
 **Every turn your AI takes costs money.** Sonnet 4.6: $3/$15 per million tokens (input/output). Opus 4.6: $5/$25 — 1.67x more. Here's what that looks like:
@@ -11,6 +16,14 @@
 These are 3 of the 15 waste patterns vibecheck catches. Every one explained below with dollar amounts, what goes wrong, and how we fix it.
 
 Works with Claude, GPT, Gemini, DeepSeek, Qwen, Kimi, GLM, MiniMax. 24+ coding tools. Runs locally — your data stays on your machine.
+
+## What vibecheck does
+
+- scans the supported AI coding tools on your machine in one unified pass
+- shows waste by tool, model, provider, and project
+- fixes the first important tool step by step
+- bulk-applies the same treatment to the rest after one approval
+- finishes with human-side education so people keep costs down without breaking their workflow
 
 ## How to install
 
@@ -59,6 +72,10 @@ Your data doesn't leave your machine. No server, no API, no telemetry. Open sour
 - `python3 scripts/export_optimization_log.py <payload.json> [output.md]` — saves a clean Markdown scan log or tool-optimization log locally
 
 `/vibecheck scan` should feel calm: one compact progress state while it works, then a clean unified summary with health markers (`Good ✅` for measured waste `<= 10%`, `Waste ❌` for measured waste `> 10%`), ranked tool/model statistics, top patterns, and a daily-driver-first optimization roadmap. Raw logs and internal tool chatter stay backstage unless something fails and you explicitly need details.
+
+## Related
+
+- [handoff](https://github.com/wallmage/handoff) — separate sister skill for switching to fresh chats without losing decisions or state
 
 ### Fresh sessions without losing context
 
