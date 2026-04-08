@@ -12,26 +12,16 @@ vibecheck analyzes your AI coding session logs, shows you where the money went, 
 
 Works with Claude, GPT, Gemini, DeepSeek, Qwen, Kimi, GLM, MiniMax. Supports 24+ coding tools -- full session analysis for Claude Code, Codex, Cursor, OpenClaw, GitHub Copilot, Windsurf, TRAE, Qoder, CodeBuddy, WorkBuddy, and Google Antigravity, plus instruction-file optimization for the rest. Runs locally. Your data stays on your machine.
 
-## Nothing to install
+## How to install
 
-vibecheck is a **skill** -- a cheat sheet your AI reads. No downloads. You paste one message, your AI learns the skill, done.
+Copy this into Claude Code (or any AI coding tool) and press Enter:
 
-Copy this into whatever AI coding tool you use:
+> Clone https://github.com/wallmage/vibecheck into my skills folder at ~/.claude/skills/vibecheck, then run /vibecheck scan
 
-> Install the vibecheck skill from https://github.com/wallmage/vibecheck and run /vibecheck scan
+That's it. Your AI does the rest.
 
-That's the whole setup. Your AI reads the skill file and walks you through the result.
+**Other tools** (Cursor, Codex, Windsurf, Copilot, Cowork, etc.):
 
-If you're on Claude Code, install permanently:
-```bash
-git clone https://github.com/wallmage/vibecheck.git ~/.claude/skills/vibecheck
-```
-Then in any Claude Code session:
-```
-/vibecheck scan
-```
-
-If you're using a sandbox tool (Cowork, etc.):
 > Clone https://github.com/wallmage/vibecheck to /tmp/vibecheck, read SKILL.md, and run /vibecheck scan
 
 ### Wait, what's a skill?
