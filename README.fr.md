@@ -2,9 +2,9 @@
 
 [English](README.md) | [中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Italiano](README.it.md) | [Português](README.pt-BR.md)
 
-**Chaque tour de votre IA coûte de l'argent.** Sonnet : ~$0.03/tour. Opus : ~$0.15/tour. Quand l'IA dit « OK, je vais corriger ça » avant de corriger — ce tour est du gaspillage pur. Et ça empire : chaque tour relit toute la conversation depuis le début. Plus la conversation est longue, plus chaque tour coûte cher. C'est l'inflation de contexte.
+**Chaque tour de votre IA coûte de l'argent.** Sonnet 4.6 : $3/$15 par MTok (entrée/sortie). Opus 4.6 : $5/$25 — 1,67x plus cher. Un tour en milieu de session coûte ~$0.038 sur Sonnet. Quand l'IA dit « OK, je vais corriger ça » avant de corriger — ces $0.031 sont du gaspillage pur. Et ça empire : chaque tour relit toute la conversation depuis le début. Plus la conversation est longue, plus chaque tour coûte cher. C'est l'inflation de contexte.
 
-Les outils de code IA gaspillent des tours en permanence — narrer au lieu d'agir, lire 3 fichiers un par un au lieu de tous en même temps, exécuter `git add` et `git commit` séparément. vibecheck élimine le gaspillage de deux façons : moins de tours (regroupement, parallélisation, suppression de la narration) + contexte plus petit par tour (compression du fichier de config, nettoyage des conversations longues). Ce ne sont que 2 des 15 mécanismes. Ensemble, ils réduisent votre facture de 50%+.
+Les outils de code IA gaspillent des tours en permanence — narrer au lieu d'agir, lire les fichiers un par un, exécuter `git add` et `git commit` séparément. vibecheck détecte 18 mécanismes sur 4 niveaux, les corrige via des règles de fichier de config et la compression, et suit les améliorations. Réduit votre facture de 40-65% selon votre utilisation. [Spécifications détaillées →](SPECSHEET.md)
 
 Supporte Claude, GPT, Gemini, DeepSeek, Qwen, Kimi, GLM, MiniMax. 24+ outils. Exécution locale, vos données ne quittent jamais votre machine.
 
@@ -56,7 +56,7 @@ Accès au **dossier projet** pour lire/éditer le fichier de config. Demande ava
 - `/vibecheck compress` — Compresser le fichier de config (25-50%)
 - `/vibecheck monitor` — Comparaison hebdomadaire + alertes
 
-## 15 patterns de gaspillage
+## 18 mécanismes
 
 **Niveau 1 (70-80%) :** Narration à vide, pourriture de contexte, debugging ping-pong
 **Niveau 2 (15-20%) :** Sortie verbeuse, commandes non chaînées, exploration du codebase, éditions non groupées

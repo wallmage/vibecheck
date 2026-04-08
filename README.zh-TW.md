@@ -2,9 +2,9 @@
 
 [English](README.md) | [中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Italiano](README.it.md) | [Português](README.pt-BR.md)
 
-**AI 每一輪操作都在花你的錢。** Sonnet 大約 $0.03/輪，Opus 大約 $0.15/輪。AI 說了句「好，我來修」然後才去修——這就是一輪浪費，白花錢。更慘的是：每一輪都會把整段對話從頭讀一遍，聊得越長，每輪越貴。這就是上下文膨脹。
+**AI 每一輪操作都在花你的錢。** Sonnet 4.6 定價 $3/$15 每百萬 token（輸入/輸出），Opus 4.6 $5/$25——貴 1.67 倍。會話中段一輪 Sonnet 約花費 $0.038。AI 說「好，我來修」然後才修——這 $0.031 白花了。更慘的是：每輪都把整段對話從頭讀一遍，聊得越長每輪越貴。這就是上下文膨脹。
 
-AI 程式開發工具到處在浪費輪次——先說要幹嘛再幹、一個檔案一個檔案地讀而不是一起讀、`git add` 和 `git commit` 分兩輪跑。vibecheck 兩招砍浪費：減少輪次（合併、平行、砍廢話）和縮小每輪上下文（壓縮設定檔、清理長對話）。這只是 15 種機制中的 2 種，全部加起來能砍掉 50% 以上的帳單。
+AI 程式開發工具到處在浪費輪次——先說要幹嘛再幹、檔案一個個讀而不是一起讀、`git add` 和 `git commit` 分兩輪跑。vibecheck 偵測 4 層共 18 種機制，透過指令檔規則和壓縮來修復，並持續追蹤改善效果。根據使用模式可砍掉 40-65% 的帳單。[詳細機制說明 →](SPECSHEET.md)
 
 支援 Claude、GPT、Gemini、DeepSeek、Qwen、Kimi、GLM、MiniMax。24+ 種工具。本機執行，資料不出你電腦。
 
@@ -56,7 +56,7 @@ vibecheck 需要存取**專案資料夾**來讀取和編輯設定檔。每次修
 - `/vibecheck compress` — 壓縮設定檔（25-50%）
 - `/vibecheck monitor` — 週度對比 + 告警
 
-## 15 種浪費模式
+## 18 種機制
 
 **第一層（70-80%）：** 空轉敘述、上下文腐爛、乒乓除錯
 **第二層（15-20%）：** 冗長輸出、未串聯命令、程式碼庫漫遊、未批次編輯

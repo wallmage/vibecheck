@@ -2,9 +2,9 @@
 
 [English](README.md) | [中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Italiano](README.it.md) | [Português](README.pt-BR.md)
 
-**Every turn your AI takes costs money.** On Sonnet that's ~$0.03. On Opus, ~$0.15. When your AI says "OK, let me fix that" before fixing it -- that's a wasted turn. You just paid for nothing. And it gets worse: every turn re-reads the entire conversation from the top, so the longer your chat goes, the more expensive each turn becomes. That's context rot.
+**Every turn your AI takes costs money.** Sonnet 4.6: $3/$15 per million tokens (input/output). Opus 4.6: $5/$25 — 1.67x more. A mid-session turn on Sonnet costs ~$0.038. When your AI says "OK, let me fix that" before fixing it — that turn cost you $0.031 for nothing. And it compounds: every turn re-reads the entire conversation from the top, so the longer your chat goes, the more expensive each turn becomes. That's context rot.
 
-AI coding tools waste turns constantly -- narrating instead of acting, reading 3 files one at a time instead of all at once, running `git add` and `git commit` as separate turns. vibecheck kills the waste two ways: fewer turns (batch, parallelize, cut narration) and smaller context per turn (compress your instruction file, clear stale conversations). These are just 2 of the 15 mechanisms. Together they cut your bill 50%+.
+AI coding tools waste turns constantly — narrating instead of acting, reading 3 files one at a time instead of all at once, running `git add` and `git commit` as separate turns. vibecheck detects 18 mechanisms across 4 tiers, fixes them through instruction file rules and compression, and tracks improvement over time. Together they cut your bill 40-65% depending on usage pattern. [Full mechanism specs with dollar breakdowns →](SPECSHEET.md)
 
 Works with Claude, GPT, Gemini, DeepSeek, Qwen, Kimi, GLM, MiniMax. Supports 24+ coding tools. Runs locally. Your data stays on your machine.
 
@@ -92,30 +92,37 @@ Run it once, get projections. Run it again in a couple weeks, see what changed:
 
 Snapshots saved in `~/.vibecheck/snapshots/`. Persists across reboots.
 
-## The 15 patterns
+## The 18 mechanisms
 
-**The big 3 (70-80% of waste)**
-1. Idle narration -- "Now I'll fix that" then fixes it. Just fix it.
-2. Context rot -- 60-message conversations where the last message costs 60x the first
-3. Ping-pong debugging -- edit, break, edit, break
+**Tier 1 — The Big 3 (60-70% of waste)**
+1. Idle narration — "Now I'll fix that" then fixes it next turn. $0.031 wasted per occurrence.
+2. Context rot — 60-turn conversation where turn 60 costs 12x turn 1. Splitting saves $0.67/session.
+3. Ping-pong debugging — fix, break, fix, break. 12K tokens of dead errors in context.
 
-**Mechanics (15-20%)**
-4. Verbose output -- 500 lines of build logs re-read every future turn
-5. Unchained commands -- `git add` then `git commit` as two separate messages
-6. Codebase wandering -- reading 8 files before touching 1
-7. Unbatched edits -- editing 3 files in 3 messages instead of 1
+**Tier 2 — Turn Density (15-20%)**
+4. Verbose output — 5K tokens of build logs re-read every future turn. $0.018/instance context tax.
+5. Unchained commands — `git add` then `git commit` as two turns. $0.023 per unnecessary split.
+6. Codebase wandering — reading 8 files before touching 1. $0.217 per episode.
+7. Unbatched edits — editing 3 files in 3 turns instead of 1. $0.076/instance.
 
-**The tail (5-10%)**
-8. File re-reads -- same file, read twice
-9. Sleep/poll loops -- "is it done yet?" every 5 seconds
-10. Failed retries -- broken command stays in context forever
-11. Schema lookups -- checking what tools exist (it already knows)
-12. Git ceremony -- 4 git commands in 4 separate turns
+**Tier 3 — The Tail (5-10%)**
+8. File re-reads — same file, read twice. $0.043 wasted.
+9. Sleep/poll loops — "is it done yet?" every 5 seconds. $0.152 per episode.
+10. Failed retries — same broken command, run twice. Error output stuck in context.
+11. Schema lookups — checking what tools exist (it already knows). $0.052 wasted.
+12. Git ceremony — 4 git commands in 4 turns. $0.098/instance.
 
-**Always-on agents (OpenClaw, etc.)**
-13. Idle heartbeats -- wakes up every 5 minutes, nothing to do, pays anyway
-14. Workspace bloat -- re-reads 35K tokens of personality files every wake-up
-15. Memory accumulation -- session history grows forever
+**Tier 4 — Always-On Agents**
+13. Idle heartbeats — wakes every 5 min, nothing to do. **$11.20/day** wasted.
+14. Workspace bloat — re-reads 35K tokens of personality files every wake. $5.76/day.
+15. Memory accumulation — session history grows forever. $3.17/day.
+
+**Optimization Tools**
+16. Instruction file compression — 4-pass lossless compressor, 23 techniques, 25-50% reduction.
+17. Output suppression — no code/diffs unless asked. Output tokens cost 5x input.
+18. Cost monitoring — weekly comparison, regression alerts.
+
+[Detailed breakdown with methodology →](SPECSHEET.md)
 
 ## Supported tools
 

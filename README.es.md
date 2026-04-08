@@ -2,9 +2,9 @@
 
 [English](README.md) | [中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Italiano](README.it.md) | [Português](README.pt-BR.md)
 
-**Cada turno de tu IA cuesta dinero.** Sonnet: ~$0.03/turno. Opus: ~$0.15/turno. Cuando la IA dice "OK, voy a arreglar eso" antes de arreglar — ese turno es desperdicio puro. Y empeora: cada turno relee toda la conversación desde el inicio. Cuanto más larga la conversación, más caro cada turno. Esto es inflación de contexto.
+**Cada turno de tu IA cuesta dinero.** Sonnet 4.6: $3/$15 por MTok (entrada/salida). Opus 4.6: $5/$25 — 1.67x más caro. Un turno a mitad de sesión en Sonnet cuesta ~$0.038. Cuando la IA dice "OK, voy a arreglar eso" antes de arreglar — esos $0.031 son desperdicio puro. Y empeora: cada turno relee toda la conversación desde el inicio. Cuanto más larga la conversación, más caro cada turno. Esto es inflación de contexto.
 
-Las herramientas de código IA desperdician turnos constantemente — narrar en vez de actuar, leer 3 archivos uno por uno en vez de todos juntos, ejecutar `git add` y `git commit` por separado. vibecheck elimina el desperdicio de dos formas: menos turnos (agrupar, paralelizar, eliminar narración) + contexto más pequeño por turno (comprimir archivo de config, limpiar conversaciones largas). Estos son solo 2 de 15 mecanismos. Juntos reducen tu factura 50%+.
+Las herramientas de código IA desperdician turnos constantemente — narrar en vez de actuar, leer archivos uno por uno, ejecutar `git add` y `git commit` por separado. vibecheck detecta 18 mecanismos en 4 niveles, los corrige con reglas en el archivo de config y compresión, y rastrea mejoras. Reduce tu factura 40-65% según tu patrón de uso. [Especificaciones detalladas →](SPECSHEET.md)
 
 Soporta Claude, GPT, Gemini, DeepSeek, Qwen, Kimi, GLM, MiniMax. 24+ herramientas. Ejecución local, tus datos nunca salen de tu máquina.
 
@@ -56,7 +56,7 @@ Necesita acceso a tu **carpeta de proyecto** para leer/editar el archivo de conf
 - `/vibecheck compress` — Comprimir archivo de config (25-50%)
 - `/vibecheck monitor` — Comparación semanal + alertas
 
-## 15 patrones de desperdicio
+## 18 mecanismos
 
 **Nivel 1 (70-80%):** Narración inactiva, degradación de contexto, debugging ping-pong
 **Nivel 2 (15-20%):** Salida verbosa, comandos sin encadenar, exploración del codebase, ediciones sin agrupar

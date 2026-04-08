@@ -2,9 +2,9 @@
 
 [English](README.md) | [中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Italiano](README.it.md) | [Português](README.pt-BR.md)
 
-**Jeder Turn deiner KI kostet Geld.** Bei Sonnet ~$0.03, bei Opus ~$0.15. Wenn deine KI erst sagt „OK, ich fixe das jetzt" und es dann fixt — dieser Turn war reine Verschwendung. Und es wird schlimmer: Jeder Turn liest die gesamte Konversation von Anfang an neu. Je länger das Gespräch, desto teurer jeder Turn. Das ist Kontext-Aufblähung.
+**Jeder Turn deiner KI kostet Geld.** Sonnet 4.6: $3/$15 pro MTok (Input/Output). Opus 4.6: $5/$25 — 1,67x teurer. Ein Turn zur Session-Mitte kostet auf Sonnet ~$0.038. Wenn deine KI erst sagt „OK, ich fixe das jetzt" und es dann fixt — diese $0.031 waren reine Verschwendung. Und es wird schlimmer: Jeder Turn liest die gesamte Konversation von Anfang an neu. Je länger das Gespräch, desto teurer jeder Turn. Das ist Kontext-Aufblähung.
 
-KI-Coding-Tools verschwenden ständig Turns — erst erzählen statt handeln, 3 Dateien einzeln lesen statt alle auf einmal, `git add` und `git commit` als getrennte Turns ausführen. vibecheck eliminiert die Verschwendung auf zwei Wegen: weniger Turns (Batching, Parallelisierung, kein Erzählen) + kleinerer Kontext pro Turn (Konfigurationsdatei komprimieren, lange Gespräche bereinigen). Das sind nur 2 von 15 Mechanismen. Zusammen reduzieren sie deine Rechnung um 50%+.
+KI-Coding-Tools verschwenden ständig Turns — erst erzählen statt handeln, Dateien einzeln lesen statt alle auf einmal, `git add` und `git commit` als getrennte Turns ausführen. vibecheck erkennt 18 Mechanismen in 4 Stufen, behebt sie durch Regeln in der Konfigurationsdatei und Komprimierung und verfolgt Verbesserungen kontinuierlich. Reduziert deine Rechnung um 40-65% je nach Nutzungsmuster. [Detaillierte Spezifikation →](SPECSHEET.md)
 
 Unterstützt Claude, GPT, Gemini, DeepSeek, Qwen, Kimi, GLM, MiniMax. 24+ Tools. Läuft lokal, deine Daten verlassen nie deinen Rechner.
 
@@ -56,7 +56,7 @@ Zugriff auf deinen **Projektordner** zum Lesen/Bearbeiten der Konfigurationsdate
 - `/vibecheck compress` — Konfigurationsdatei komprimieren (25-50%)
 - `/vibecheck monitor` — Woche-zu-Woche Vergleich + Warnungen
 
-## 15 Verschwendungsmuster
+## 18 Mechanismen
 
 **Stufe 1 (70-80%):** Leerlauf-Erzählung, Kontext-Verfall, Ping-Pong-Debugging
 **Stufe 2 (15-20%):** Ausführliche Ausgaben, unverkettete Befehle, Codebase-Wandern, ungebündelte Edits

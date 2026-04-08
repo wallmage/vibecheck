@@ -2,9 +2,9 @@
 
 [English](README.md) | [中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Italiano](README.it.md) | [Português](README.pt-BR.md)
 
-**AI 每一轮操作都在花你的钱。** Sonnet 大约 $0.03/轮，Opus 大约 $0.15/轮。AI 说了句"好，我来修"然后才去修——这就是一轮浪费，白花钱。更坑的是：每一轮都会把整个对话从头读一遍，聊得越长，每轮越贵。这就是上下文膨胀。
+**AI 每一轮操作都在花你的钱。** Sonnet 4.6 定价 $3/$15 每百万 token（输入/输出），Opus 4.6 $5/$25——贵 1.67 倍。会话中段一轮 Sonnet 约花费 $0.038。AI 说"好，我来修"然后才修——这 $0.031 白花了。更坑的是：每轮都把整个对话从头读一遍，聊得越长每轮越贵。这就是上下文膨胀。
 
-AI 编程工具到处在浪费轮次——先说要干啥再干、一个文件一个文件地读而不是一起读、`git add` 和 `git commit` 分两轮跑。vibecheck 两招砍浪费：减少轮次（合并、并行、砍废话）和缩小每轮上下文（压缩配置文件、清理长对话）。这只是 15 种机制中的 2 种，全部加起来能砍掉 50% 以上的账单。
+AI 编程工具到处在浪费轮次——先说要干啥再干、文件一个个读而不是一起读、`git add` 和 `git commit` 分两轮跑。vibecheck 检测 4 层共 18 种机制，通过指令文件规则和压缩来修复，并持续跟踪改善效果。根据使用模式可砍掉 40-65% 的账单。[详细机制说明 →](SPECSHEET.md)
 
 支持 Claude、GPT、Gemini、DeepSeek、Qwen、Kimi、GLM、MiniMax。24+ 种工具。本地运行，数据不出你电脑。
 
@@ -91,7 +91,7 @@ vibecheck 用你自己的数据走一遍：token 是什么，为什么 AI 每条
 
 快照存在 `~/.vibecheck/snapshots/`，重启不丢。
 
-## 15 种浪费模式
+## 18 种机制
 
 **三大杀手（占浪费的 70-80%）**
 1. 空话——"我来修一下"→ 直接修
