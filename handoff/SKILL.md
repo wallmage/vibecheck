@@ -1,6 +1,6 @@
 ---
 name: handoff
-description: "Portable session handoff between chat threads via copy-paste. Trigger on phrases like \"handoff\", \"hand off\", \"new session\", \"switch session\", \"start fresh\", or \"wrap up and hand off\". In the old chat, emit one copyable fenced block. In the new chat, absorb the pasted block and resume. Tool-agnostic: works in GUI and CLI. No file I/O. No chained skills."
+description: "Use when the user wants to continue work in a fresh chat without losing decisions, current state, or next steps; trigger on phrases like \"handoff\", \"hand off\", \"new session\", \"switch session\", \"start fresh\", \"context is getting long\", or \"wrap up and hand off\"."
 ---
 
 # Handoff
@@ -13,18 +13,32 @@ Default goal: preserve decisions, current state, open issues, and next steps in 
 
 - No files. Clipboard/chat text only.
 - No chaining. Do not trigger other skills from handoff.
+- No tool calls. Generate and resume from conversation context only.
 - Keep the current session faithful. Preserve conclusions, decisions, discovered mechanisms, failed experiments, measurements, open issues, and pending work.
-- Compress the journey. Drop greetings, repeated back-and-forth, and raw code dumps.
+- Compress the journey. Drop greetings, side chat, repeated back-and-forth, and raw code dumps.
 - Prefer concise structure over narrative prose.
-- One fenced code block for generate mode. No extra artifacts.
+- One fenced code block for generate mode. No extra artifacts before or after it.
+
+## Compression Standard
+
+Handoff uses **lossless compression**, not a casual recap.
+
+- Keep durable facts, decisions, discoveries, blockers, and next actions.
+- Remove packaging: greetings, pep talks, acknowledgements, narration about what the assistant was about to do, and other chat glue.
+- Remove side discussion that does not change the technical or product state.
+- Merge duplicates. If the same conclusion was reached three times, keep it once.
+- Collapse trial-and-error into outcomes: what was tried, why it failed, and what matters now.
+- Convert tool chatter into findings. Keep the result, not the terminal transcript.
+- Keep exact values when they matter: versions, limits, costs, measurements, hashes, and file paths.
 
 ## Budget
 
-- Default: **4k-8k tokens**
-- Use more only when the session is unusually technical, fragile, or mid-flight.
-- If the user explicitly asks for a detailed or full-fidelity handoff, go larger.
+- Target: **2k-4k tokens**
+- Normal case: stay near the lower end of the range.
+- Use the upper end only when the session has many important decisions, failures, reversals, or partial state that would be expensive to rediscover.
+- Do not exceed **4k** unless the user explicitly asks for a detailed or full-fidelity handoff.
 
-This is intentionally smaller than the old default. Handoff should make fresh sessions easier, not become a second giant prompt.
+Handoff should make fresh sessions easier, not become a second giant prompt.
 
 ## What To Preserve
 
@@ -39,11 +53,17 @@ Always keep:
 - The next best action
 
 Compress heavily:
-- Step-by-step trial and error
+- Step-by-step trial and error after the outcome is clear
 - Raw command transcripts
-- Large code blocks
-- Greetings and meta discussion
+- Large code blocks unless the exact snippet is the key state
+- Greetings, meta discussion, and side chat
 - Repeated explanations of the same point
+
+Never keep:
+- social glue with no state value
+- brainstorming branches that were abandoned without learning anything
+- narration like "I’ll check this next" or "let me think"
+- repeated status updates that did not change the result
 
 ## Mode A: Generate
 
@@ -60,9 +80,14 @@ Triggers include:
 ### How to generate
 
 1. Reconstruct the session mentally.
-2. Capture the useful state, not the whole transcript.
-3. If the first user message already contained an older handoff, keep only the durable conclusions from it. Compress older context aggressively.
-4. Output one fenced code block in this shape:
+2. Extract concrete state first: decisions, discoveries, failures, current state, open issues, next actions.
+3. Run lossless compression:
+   - remove packaging and side chat
+   - merge duplicates
+   - collapse transcripts into findings
+   - keep only durable older context
+4. If the first user message already contained an older handoff, keep only the durable conclusions from it. Compress older context aggressively.
+5. Output one fenced code block in this shape:
 
 ```text
 ---HANDOFF [YYYY-MM-DD HH:MM]---
@@ -98,19 +123,33 @@ NEXT:
 ---END---
 ```
 
+Target section weight:
+- `PRIOR CONTEXT`: 5-10%
+- `THIS SESSION`: 40-50%
+- `FAILED / REVERTED`: 10-15%
+- `CURRENT STATE`: 15-20%
+- `OPEN ISSUES`: 10-15%
+- `NEXT`: 5-10%
+
 ### Writing guidance
 
 - Use flat bullets.
 - Keep each bullet dense and specific.
+- Keep the block inside the 2k-4k target unless the user explicitly asks for more.
 - Include commit hashes only when they actually help.
 - Include file paths only when the next session will likely need them.
 - If the session is mid-task, be explicit about what is done vs. not done.
+- Prefer state over chronology.
+- Prefer conclusions over narration.
+- If the block is getting too long, compress `PRIOR CONTEXT` and repeated background before touching `CURRENT STATE`, `OPEN ISSUES`, or `NEXT`.
 
 ### Multi-hop rule
 
 - N-1 context: keep only durable facts and open issues.
 - Older layers: compress to a few bullets total.
 - Do not keep nesting giant prior handoffs inside new giant handoffs.
+
+Reference example: `examples/reference-handoff.md`
 
 ## Mode B: Resume
 
@@ -127,6 +166,11 @@ Use when the first user message contains a pasted handoff block.
    - open issues
    - next action
 4. Stop and wait for instruction.
+
+Resume rules:
+- Keep the resume response compact. Do not turn the handoff back into a long essay.
+- Do not restate low-value background the user just pasted.
+- Surface uncertainty only when the handoff itself is stale or ambiguous.
 
 Suggested response shape:
 
