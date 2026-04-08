@@ -2,15 +2,11 @@
 
 [English](README.md) | [中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Italiano](README.it.md) | [Português](README.pt-BR.md)
 
-**You're paying for your AI to re-read its own messages.**
+**Every turn your AI takes costs money.** On Sonnet that's ~$0.03. On Opus, ~$0.15. When your AI says "OK, let me fix that" before fixing it -- that's a wasted turn. You just paid for nothing. And it gets worse: every turn re-reads the entire conversation from the top, so the longer your chat goes, the more expensive each turn becomes. That's context rot.
 
-Every time you send a message, the AI reads the entire conversation again. From the top. Message #50 re-reads all 49 previous messages before it even starts thinking. That "OK, now I'll fix that" line the AI typed? It did nothing — but you paid for it, and you'll keep paying for it every turn after because it's now part of the conversation the AI re-reads.
+AI coding tools waste turns constantly -- narrating instead of acting, reading 3 files one at a time instead of all at once, running `git add` and `git commit` as separate turns. vibecheck kills the waste two ways: fewer turns (batch, parallelize, cut narration) and smaller context per turn (compress your instruction file, clear stale conversations). These are just 2 of the 15 mechanisms. Together they cut your bill 50%+.
 
-I ran this on my own sessions. Over 50% of my token spend was waste. These patterns show up in almost every session.
-
-vibecheck analyzes your AI coding session logs, shows you where the money went, and adds a paragraph to your instruction file that stops most of the waste. Same work, lower bill.
-
-Works with Claude, GPT, Gemini, DeepSeek, Qwen, Kimi, GLM, MiniMax. Supports 24+ coding tools -- full session analysis for Claude Code, Codex, Cursor, OpenClaw, GitHub Copilot, Windsurf, TRAE, Qoder, CodeBuddy, WorkBuddy, and Google Antigravity, plus instruction-file optimization for the rest. Runs locally. Your data stays on your machine.
+Works with Claude, GPT, Gemini, DeepSeek, Qwen, Kimi, GLM, MiniMax. Supports 24+ coding tools. Runs locally. Your data stays on your machine.
 
 ## How to install
 

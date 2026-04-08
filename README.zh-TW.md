@@ -2,34 +2,31 @@
 
 [English](README.md) | [中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Italiano](README.it.md) | [Português](README.pt-BR.md)
 
-**你的 AI 程式開發工具正在燒你看不到的錢。**
+**AI 每一輪操作都在花你的錢。** Sonnet 大約 $0.03/輪，Opus 大約 $0.15/輪。AI 說了句「好，我來修」然後才去修——這就是一輪浪費，白花錢。更慘的是：每一輪都會把整段對話從頭讀一遍，聊得越長，每輪越貴。這就是上下文膨脹。
 
-你送出的每則訊息，AI 都會從頭重新讀一遍*整段*對話紀錄。第 50 則訊息的成本是第 1 則的 50 倍。AI 說「好的，我現在來修復這個」？花了你的錢但什麼都沒做。那 500 行建置日誌？之後的每一則訊息都會重新讀一遍。
+AI 程式開發工具到處在浪費輪次——先說要幹嘛再幹、一個檔案一個檔案地讀而不是一起讀、`git add` 和 `git commit` 分兩輪跑。vibecheck 兩招砍浪費：減少輪次（合併、平行、砍廢話）和縮小每輪上下文（壓縮設定檔、清理長對話）。這只是 15 種機制中的 2 種，全部加起來能砍掉 50% 以上的帳單。
 
-大多數 Vibe Coder 在不知不覺中浪費了**超過 50%** 的 AI Token 預算。
+支援 Claude、GPT、Gemini、DeepSeek、Qwen、Kimi、GLM、MiniMax。24+ 種工具。本機執行，資料不出你電腦。
 
-vibecheck 解決這個問題。掃描最近 14 天的工作階段，精確找出浪費在哪裡，用白話解釋（不用術語——我們會教你什麼是 Token），然後在你的設定檔加一段話就搞定。活照做，錢省一半。
+## 怎麼安裝
 
-**平均節省：50%+ 的 Token 帳單。** 支援所有 LLM 模型（Claude、GPT、Gemini、DeepSeek、Qwen、Kimi、GLM、MiniMax）。支援 Claude Code、Codex、Cursor、OpenClaw、Copilot、Windsurf 等 24+ 種 AI 程式開發工具。100% 本機執行——你的資料永遠不會離開你的電腦。
+把這句話貼到你的 AI 程式開發工具裡，按 Enter：
 
-## 立即開始——不需要下載任何東西
+> Help me install this skill: https://github.com/wallmage/vibecheck
 
-vibecheck 是一個**技能**——一組你的 AI 程式開發工具可以學習的指令。你不需要下載或安裝任何軟體。只需給你的 AI 一個連結，它就會自己學會如何優化成本。一則訊息搞定。
+搞定。AI 自己搞定剩下的。
 
-**把這段話複製貼上到你的 AI 程式開發工具裡**（Claude Code、Cursor、Codex、Windsurf、Cline——任何一個都行）：
+<details>
+<summary>或者用命令列手動安裝</summary>
 
-> 從 https://github.com/wallmage/vibecheck 安裝 vibecheck 技能，然後執行 /vibecheck scan
-
-就這樣。你的 AI 讀取技能，掃描最近 14 天，然後一步步教你。
-
-**或者用命令列：**
 ```bash
-claude install-skill https://github.com/wallmage/vibecheck
-/vibecheck scan
+git clone https://github.com/wallmage/vibecheck.git ~/.claude/skills/vibecheck
 ```
 
-**沙盒工具（Cowork 等）：**
-> 把 https://github.com/wallmage/vibecheck 克隆到 /tmp/vibecheck，讀取 SKILL.md，然後執行 /vibecheck scan
+然後在任意工作階段輸入 `/vibecheck scan`
+
+更新：`cd ~/.claude/skills/vibecheck && git pull`
+</details>
 
 ### 什麼是「技能」？
 

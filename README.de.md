@@ -2,34 +2,31 @@
 
 [English](README.md) | [中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Italiano](README.it.md) | [Português](README.pt-BR.md)
 
-**Dein KI-Coding-Tool verbrennt Geld, das du nicht siehst.**
+**Jeder Turn deiner KI kostet Geld.** Bei Sonnet ~$0.03, bei Opus ~$0.15. Wenn deine KI erst sagt „OK, ich fixe das jetzt" und es dann fixt — dieser Turn war reine Verschwendung. Und es wird schlimmer: Jeder Turn liest die gesamte Konversation von Anfang an neu. Je länger das Gespräch, desto teurer jeder Turn. Das ist Kontext-Aufblähung.
 
-Jede Nachricht, die du sendest, liest deine KI den *gesamten* Gesprächsverlauf von vorne. Nachricht #50 kostet 50x so viel wie Nachricht #1. Diese Ansage "OK, jetzt werde ich das fixen"? Hat dich Geld gekostet und nichts gebracht. Die 500 Zeilen Build-Logs? Werden bei jeder zukünftigen Nachricht nochmal gelesen.
+KI-Coding-Tools verschwenden ständig Turns — erst erzählen statt handeln, 3 Dateien einzeln lesen statt alle auf einmal, `git add` und `git commit` als getrennte Turns ausführen. vibecheck eliminiert die Verschwendung auf zwei Wegen: weniger Turns (Batching, Parallelisierung, kein Erzählen) + kleinerer Kontext pro Turn (Konfigurationsdatei komprimieren, lange Gespräche bereinigen). Das sind nur 2 von 15 Mechanismen. Zusammen reduzieren sie deine Rechnung um 50%+.
 
-Die meisten Vibe-Coder verschwenden **über 50%** ihres KI-Token-Budgets, ohne es zu wissen.
+Unterstützt Claude, GPT, Gemini, DeepSeek, Qwen, Kimi, GLM, MiniMax. 24+ Tools. Läuft lokal, deine Daten verlassen nie deinen Rechner.
 
-vibecheck behebt das. Es scannt deine letzten 14 Tage, findet genau wo die Verschwendung liegt, erklärt es in einfacher Sprache (kein Fachjargon), und wendet Ein-Absatz-Fixes auf deine Konfigurationsdatei an. Gleiche Arbeit. Halbe Kosten.
+## Installation
 
-**Durchschnittliche Ersparnis: 50%+ deiner Token-Rechnung.** Unterstützt alle LLM-Modelle (Claude, GPT, Gemini, DeepSeek, Qwen, Kimi, GLM, MiniMax). Funktioniert mit Claude Code, Codex, Cursor, OpenClaw, Copilot, Windsurf und 24+ KI-Coding-Tools. 100% lokal — deine Daten verlassen niemals deinen Rechner.
+Füge dies in dein KI-Coding-Tool ein und drücke Enter:
 
-## Sofort loslegen — kein Download nötig
+> Help me install this skill: https://github.com/wallmage/vibecheck
 
-vibecheck ist ein **Skill** — ein Satz Anweisungen, den dein KI-Coding-Tool lernt. Du musst keine Software herunterladen oder installieren. Gib deiner KI einfach einen Link, und sie bringt sich selbst bei, wie sie deine Kosten optimiert. Eine Nachricht, fertig.
+Fertig. Deine KI erledigt den Rest.
 
-**Kopiere das in dein KI-Coding-Tool** (Claude Code, Cursor, Codex, Windsurf, Cline — egal welches):
+<details>
+<summary>Oder manuell per Kommandozeile</summary>
 
-> Installiere den vibecheck Skill von https://github.com/wallmage/vibecheck und führe /vibecheck scan aus
-
-Das war's. Deine KI liest den Skill, scannt deine letzten 14 Tage und erklärt dir alles.
-
-**Oder per CLI:**
 ```bash
-claude install-skill https://github.com/wallmage/vibecheck
-/vibecheck scan
+git clone https://github.com/wallmage/vibecheck.git ~/.claude/skills/vibecheck
 ```
 
-**Sandbox-Tools (Cowork etc.):**
-> Klone https://github.com/wallmage/vibecheck nach /tmp/vibecheck, lies SKILL.md, und führe /vibecheck scan aus
+Dann `/vibecheck scan` in einer beliebigen Session eingeben
+
+Update: `cd ~/.claude/skills/vibecheck && git pull`
+</details>
 
 ### Was ist ein „Skill"?
 

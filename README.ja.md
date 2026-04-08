@@ -2,34 +2,31 @@
 
 [English](README.md) | [中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Italiano](README.it.md) | [Português](README.pt-BR.md)
 
-**あなたのAIコーディングツールは、見えないところでお金を燃やしています。**
+**AIの操作1回ごとにお金がかかります。** Sonnetで約$0.03/回、Opusで約$0.15/回。AIが「では修正しますね」と言ってから修正する——それは1回分の無駄です。さらに厄介なのは、毎回会話全体を最初から読み直すこと。会話が長くなるほど、1回あたりのコストが上がります。これがコンテキスト膨張です。
 
-メッセージを送るたびに、AIは会話履歴を*全部*最初から読み直します。50番目のメッセージは1番目の50倍のコスト。AIが「では、修正しますね」と言ったあの発言？お金がかかったのに何もしていません。500行のビルドログ？今後の全メッセージで毎回読み直されます。
+AIコーディングツールは常にターンを浪費しています——実行前にナレーション、ファイルをまとめてではなく1つずつ読む、`git add`と`git commit`を別々のターンで実行。vibecheckは2つの方法で無駄を削減：ターン数を減らす（バッチ処理、並列化、ナレーション削除）＋各ターンのコンテキストを小さくする（設定ファイル圧縮、長い会話のクリア）。これは15の仕組みのうちたった2つ。すべて合わせると請求額を50%以上削減できます。
 
-ほとんどのバイブコーダーは、知らないうちにAIトークン予算の**50%以上**を無駄にしています。
+Claude、GPT、Gemini、DeepSeek、Qwen、Kimi、GLM、MiniMax対応。24+ツール。ローカル実行、データは外部に送信されません。
 
-vibecheckがそれを解決します。過去14日間のセッションをスキャンし、無駄がどこにあるか正確に特定し、わかりやすい言葉で説明し（専門用語なし）、設定ファイルに1段落追加するだけで修正。同じ作業、半分のコスト。
+## インストール方法
 
-**平均節約：トークン請求の50%以上。** すべてのLLMモデル（Claude、GPT、Gemini、DeepSeek、Qwen、Kimi、GLM、MiniMax）に対応。Claude Code、Codex、Cursor、OpenClaw、Copilot、Windsurf等24以上のツールをサポート。100%ローカル実行——データは一切外部に送信されません。
+AIコーディングツールにこれを貼り付けてEnter：
 
-## 今すぐ始める——ダウンロード不要
+> Help me install this skill: https://github.com/wallmage/vibecheck
 
-vibecheckは**スキル**です——AIコーディングツールが学べる一連の指示です。ソフトウェアのダウンロードやインストールは不要。AIにリンクを渡すだけで、コスト最適化の方法を自分で学びます。メッセージ1つで完了。
+以上です。AIが残りを処理します。
 
-**これをAIコーディングツールにコピー＆ペースト**（Claude Code、Cursor、Codex、Windsurf、Cline——どれでもOK）：
+<details>
+<summary>またはコマンドラインで手動インストール</summary>
 
-> https://github.com/wallmage/vibecheck からvibecheckスキルをインストールして、/vibecheck scan を実行してください
-
-これだけです。AIがスキルを読み、過去14日間をスキャンし、すべてを説明してくれます。
-
-**CLIの場合：**
 ```bash
-claude install-skill https://github.com/wallmage/vibecheck
-/vibecheck scan
+git clone https://github.com/wallmage/vibecheck.git ~/.claude/skills/vibecheck
 ```
 
-**サンドボックスツール（Coworkなど）：**
-> https://github.com/wallmage/vibecheck を /tmp/vibecheck にクローンし、SKILL.mdを読んで、/vibecheck scan を実行してください
+任意のセッションで `/vibecheck scan` を入力
+
+更新：`cd ~/.claude/skills/vibecheck && git pull`
+</details>
 
 ### 「スキル」とは？
 

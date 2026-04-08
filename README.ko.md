@@ -2,34 +2,31 @@
 
 [English](README.md) | [中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Italiano](README.it.md) | [Português](README.pt-BR.md)
 
-**당신의 AI 코딩 도구가 보이지 않는 돈을 태우고 있습니다.**
+**AI의 매 턴마다 돈이 듭니다.** Sonnet은 턴당 ~$0.03, Opus는 ~$0.15. AI가 "네, 수정하겠습니다"라고 말한 뒤 수정하면 — 그 한 턴은 낭비입니다. 게다가 매 턴마다 대화 전체를 처음부터 다시 읽습니다. 대화가 길어질수록 턴당 비용이 올라갑니다. 이것이 컨텍스트 팽창입니다.
 
-메시지를 보낼 때마다 AI는 *전체* 대화 기록을 처음부터 다시 읽습니다. 50번째 메시지는 1번째의 50배 비용. AI가 "네, 이제 수정하겠습니다"라고 한 그 말? 돈만 들고 아무것도 안 했습니다. 500줄 빌드 로그? 이후 모든 메시지에서 매번 다시 읽힙니다.
+AI 코딩 도구는 턴을 끊임없이 낭비합니다 — 실행 전에 설명하기, 파일을 한 번에 읽지 않고 하나씩 읽기, `git add`와 `git commit`을 따로 실행하기. vibecheck은 두 가지로 낭비를 잡습니다: 턴 수 줄이기(배치, 병렬화, 설명 제거) + 턴당 컨텍스트 크기 줄이기(설정 파일 압축, 긴 대화 정리). 이것은 15가지 메커니즘 중 2가지에 불과합니다. 모두 합치면 비용을 50% 이상 절감합니다.
 
-대부분의 바이브 코더는 모르는 사이에 AI 토큰 예산의 **50% 이상**을 낭비합니다.
+Claude, GPT, Gemini, DeepSeek, Qwen, Kimi, GLM, MiniMax 지원. 24+ 도구. 로컬 실행, 데이터는 외부로 전송되지 않습니다.
 
-vibecheck이 해결합니다. 최근 14일 세션을 스캔하고, 낭비를 정확히 찾고, 쉬운 말로 설명하고, 설정 파일에 한 문단만 추가. 같은 작업, 절반의 비용.
+## 설치 방법
 
-**평균 절약: 토큰 비용의 50% 이상.** 모든 LLM 모델(Claude, GPT, Gemini, DeepSeek, Qwen, Kimi, GLM, MiniMax) 지원. Claude Code, Codex, Cursor, OpenClaw, Copilot, Windsurf 등 24+ 도구 호환. 100% 로컬 실행 — 데이터는 절대 외부로 전송되지 않습니다.
+AI 코딩 도구에 이것을 붙여넣고 Enter:
 
-## 바로 시작 — 다운로드 필요 없음
+> Help me install this skill: https://github.com/wallmage/vibecheck
 
-vibecheck은 **스킬**입니다 — AI 코딩 도구가 배울 수 있는 지침 세트입니다. 소프트웨어를 다운로드하거나 설치할 필요 없습니다. AI에 링크를 주면 스스로 비용 최적화 방법을 배웁니다. 메시지 하나면 끝.
+끝. AI가 나머지를 처리합니다.
 
-**AI 코딩 도구에 이것을 복사하세요** (Claude Code, Cursor, Codex, Windsurf, Cline — 아무거나):
+<details>
+<summary>또는 명령줄로 수동 설치</summary>
 
-> https://github.com/wallmage/vibecheck 에서 vibecheck 스킬을 설치하고 /vibecheck scan 을 실행해주세요
-
-이게 전부입니다. AI가 스킬을 읽고, 14일을 스캔하고, 모든 것을 설명해줍니다.
-
-**CLI의 경우:**
 ```bash
-claude install-skill https://github.com/wallmage/vibecheck
-/vibecheck scan
+git clone https://github.com/wallmage/vibecheck.git ~/.claude/skills/vibecheck
 ```
 
-**샌드박스 도구 (Cowork 등):**
-> https://github.com/wallmage/vibecheck 를 /tmp/vibecheck 에 클론하고, SKILL.md를 읽고, /vibecheck scan 을 실행해주세요
+아무 세션에서 `/vibecheck scan` 입력
+
+업데이트: `cd ~/.claude/skills/vibecheck && git pull`
+</details>
 
 ### "스킬"이란?
 

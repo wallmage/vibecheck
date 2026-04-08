@@ -2,34 +2,31 @@
 
 [English](README.md) | [中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Italiano](README.it.md) | [Português](README.pt-BR.md)
 
-**Votre outil de code IA brûle de l'argent que vous ne voyez pas.**
+**Chaque tour de votre IA coûte de l'argent.** Sonnet : ~$0.03/tour. Opus : ~$0.15/tour. Quand l'IA dit « OK, je vais corriger ça » avant de corriger — ce tour est du gaspillage pur. Et ça empire : chaque tour relit toute la conversation depuis le début. Plus la conversation est longue, plus chaque tour coûte cher. C'est l'inflation de contexte.
 
-Chaque message que vous envoyez, votre IA relit *toute* la conversation depuis le début. Le message #50 coûte 50x le prix du message #1. Cette narration « OK, je vais corriger ça » ? Ça vous a coûté de l'argent pour rien. Ces 500 lignes de logs ? Relues à chaque futur message.
+Les outils de code IA gaspillent des tours en permanence — narrer au lieu d'agir, lire 3 fichiers un par un au lieu de tous en même temps, exécuter `git add` et `git commit` séparément. vibecheck élimine le gaspillage de deux façons : moins de tours (regroupement, parallélisation, suppression de la narration) + contexte plus petit par tour (compression du fichier de config, nettoyage des conversations longues). Ce ne sont que 2 des 15 mécanismes. Ensemble, ils réduisent votre facture de 50%+.
 
-La plupart des vibe codeurs gaspillent **plus de 50%** de leur budget tokens IA sans le savoir.
+Supporte Claude, GPT, Gemini, DeepSeek, Qwen, Kimi, GLM, MiniMax. 24+ outils. Exécution locale, vos données ne quittent jamais votre machine.
 
-vibecheck corrige ça. Il scanne vos 14 derniers jours, trouve exactement où va le gaspillage, l'explique en langage clair, et applique des correctifs d'un paragraphe. Même travail. Moitié prix.
+## Installation
 
-**Économie moyenne : 50%+ de votre facture de tokens.** Supporte tous les modèles LLM (Claude, GPT, Gemini, DeepSeek, Qwen, Kimi, GLM, MiniMax). Fonctionne avec Claude Code, Codex, Cursor, OpenClaw, Copilot, Windsurf et 24+ outils. 100% local — vos données ne quittent jamais votre machine.
+Collez ceci dans votre outil de code IA et appuyez sur Entrée :
 
-## Commencer — rien à télécharger
+> Help me install this skill: https://github.com/wallmage/vibecheck
 
-vibecheck est un **skill** — un ensemble d'instructions que votre outil de code IA apprend. Pas de logiciel à télécharger ou installer. Donnez un lien à votre IA, elle apprend à optimiser vos coûts. Un message, c'est fait.
+C'est tout. Votre IA s'occupe du reste.
 
-**Copiez ceci dans votre outil de code IA** (Claude Code, Cursor, Codex, Windsurf, Cline) :
+<details>
+<summary>Ou installation manuelle en ligne de commande</summary>
 
-> Installe le skill vibecheck depuis https://github.com/wallmage/vibecheck et lance /vibecheck scan
-
-C'est tout. Votre IA lit le skill, scanne 14 jours et vous explique tout.
-
-**Ou en CLI :**
 ```bash
-claude install-skill https://github.com/wallmage/vibecheck
-/vibecheck scan
+git clone https://github.com/wallmage/vibecheck.git ~/.claude/skills/vibecheck
 ```
 
-**Outils sandbox (Cowork etc.) :**
-> Clone https://github.com/wallmage/vibecheck dans /tmp/vibecheck, lis SKILL.md, puis lance /vibecheck scan
+Puis tapez `/vibecheck scan` dans n'importe quelle session
+
+Mise à jour : `cd ~/.claude/skills/vibecheck && git pull`
+</details>
 
 ### Qu'est-ce qu'un « skill » ?
 

@@ -2,15 +2,11 @@
 
 [English](README.md) | [中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Italiano](README.it.md) | [Português](README.pt-BR.md)
 
-**你在为 AI 重复读自己说过的话买单。**
+**AI 每一轮操作都在花你的钱。** Sonnet 大约 $0.03/轮，Opus 大约 $0.15/轮。AI 说了句"好，我来修"然后才去修——这就是一轮浪费，白花钱。更坑的是：每一轮都会把整个对话从头读一遍，聊得越长，每轮越贵。这就是上下文膨胀。
 
-你每发一条消息，AI 都会把整个对话从头读一遍。第 50 条消息发出去之前，AI 先读完前面 49 条。AI 打了句"好的，我来修"？这句话本身没干任何事，但你花了钱，而且之后每一轮都会被重新读一遍，继续花钱。
+AI 编程工具到处在浪费轮次——先说要干啥再干、一个文件一个文件地读而不是一起读、`git add` 和 `git commit` 分两轮跑。vibecheck 两招砍浪费：减少轮次（合并、并行、砍废话）和缩小每轮上下文（压缩配置文件、清理长对话）。这只是 15 种机制中的 2 种，全部加起来能砍掉 50% 以上的账单。
 
-我拿自己的会话跑了一遍，超过一半的 token 花费是浪费。几乎每个会话都有这些模式。
-
-vibecheck 扫你最近 14 天的 AI 编程会话，告诉你钱花哪了，然后在配置文件里加一段话把大部分浪费堵住。活一样干，账单少一半。
-
-支持 Claude、GPT、Gemini、DeepSeek、Qwen、Kimi、GLM、MiniMax。工具方面支持 Claude Code、Codex、Cursor、OpenClaw、Copilot、Windsurf、TRAE、Qoder 等 24 种。本地运行，数据不出你电脑。
+支持 Claude、GPT、Gemini、DeepSeek、Qwen、Kimi、GLM、MiniMax。24+ 种工具。本地运行，数据不出你电脑。
 
 ## 怎么安装
 
