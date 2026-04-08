@@ -20,6 +20,18 @@ Paste this into your AI coding tool and press Enter:
 
 That's it. Your AI does the rest.
 
+<details>
+<summary>Or install manually via command line</summary>
+
+```bash
+git clone https://github.com/wallmage/vibecheck.git ~/.claude/skills/vibecheck
+```
+
+Then type `/vibecheck scan` in any session.
+
+To update: `cd ~/.claude/skills/vibecheck && git pull`
+</details>
+
 ### Wait, what's a skill?
 
 A recipe card for your AI. It doesn't modify anything or install anything. Just a text file that says "here's how to find waste and fix it." Your AI reads it and follows the instructions. Delete it whenever you want.
