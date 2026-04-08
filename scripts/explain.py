@@ -137,6 +137,8 @@ def build_lesson_plan(data):
     pricing = get_pricing(primary_model)
     provider = pricing.get('provider', 'unknown')
     pricing_metadata = data.get('pricing_metadata', get_pricing_metadata(primary_model))
+    tool_mix = data.get('tool_mix', {})
+    provider_mix = data.get('provider_mix', {})
 
     # Calculate daily/monthly rates
     n_days = 14
@@ -273,10 +275,57 @@ def build_lesson_plan(data):
         },
     }
 
-    if primary_model.startswith('gpt-5'):
+    if pricing_metadata.get('provider') == 'multi':
+        cache_explanation = {
+            'mechanism': 'Multiple tools and providers were merged into one scan.',
+            'key_insight': 'This report combines usage across different billing models, so focus on the unified waste patterns and the tool/model breakdowns before drilling into any single provider rule.',
+            'analogy': 'Like one household budget that combines several credit cards and wallets - the useful first view is the total spend and category breakdown, then you drill into each account.',
+        }
+    elif primary_model.startswith('gpt-5'):
         cache_explanation = cache_explanations['openai_gpt5']
     else:
         cache_explanation = cache_explanations.get(provider, cache_explanations['anthropic'])
+
+    behavior_guidance = {
+        'context_rot': {
+            'headline': 'Long threads get more expensive and less sharp.',
+            'plain': 'As the context window fills up, each new turn re-reads more stale material. That raises cost, and it also makes the model spend more attention budget sorting old state from what matters right now.',
+            'why_capability_drops': 'Overloaded context acts like a cluttered workbench: the model can still function, but it becomes easier to miss the important detail, repeat itself, or carry forward stale assumptions.',
+            'auto_compaction_note': 'Waiting for automatic compaction is not a win. By the time the thread is near the brim, you already paid the snowballing reread cost, and the model may still lose detail when the platform compresses the history.',
+        },
+        'session_slicing': {
+            'headline': 'Use focused work chunks, not endless threads.',
+            'recommended_active_minutes': 'A good default is 5-10 active minutes per focused session.',
+            'recommended_turn_ceiling': 'Treat roughly 30-40 turns as the upper comfort band before context tax usually starts snowballing.',
+            'sweet_spot_reason': 'Too small and you pay cold-start overhead every time. Too large and cache reads plus stale history dominate the bill. Focused chunks usually keep both cost and quality in a better balance.',
+            'reset_rule': 'Between unrelated slices, start a fresh chat or use /clear when the tool supports it. Teach this as a user habit, not as an instruction-file rule.',
+        },
+        'why_people_resist_clearing': {
+            'headline': 'People avoid clearing because continuity is valuable.',
+            'plain': 'The real fear is not laziness. It is the cost of context switching: losing background, decisions, and momentum, then having to re-explain everything in the next chat.',
+            'teaching_point': 'The fix is not “just clear more.” The fix is giving people a lightweight continuity system so a fresh session feels safe.',
+        },
+        'continuity_system': {
+            'persistent_behavior': 'Put durable behavior rules in the tool’s persistent surface: CLAUDE.md, AGENTS.md, GEMINI.md, or Memory.md if the tool supports it.',
+            'project_docs': 'Keep project background in small local markdown docs instead of one giant wall of prose.',
+            'project_doc_structure': [
+                'One topic per doc: architecture, roadmap, API contracts, decisions, debugging notes.',
+                'Keep docs slice-sized so a model can load one or two without dragging the whole project history.',
+                'Put a short index in the instruction file that points to the right docs instead of embedding everything inline.',
+                'Promote durable decisions into docs; keep transient session chatter out of the permanent prompt.',
+            ],
+        },
+        'handoff_skill': {
+            'recommended': True,
+            'purpose': 'The sister handoff skill makes it easy to leave one chat and resume in a fresh one without dragging the whole old thread forward.',
+            'how_to_use': 'In GUI or CLI, say natural trigger phrases like “handoff”, “hand off”, or “start fresh”. The skill returns one copyable block for the next session.',
+            'install_timing': 'Offer only after all optimization is done and the user has already seen the final success plus before/after summary.',
+            'install_mode': 'static_github_prompt_only',
+            'repo_url': 'https://github.com/wallmage/handoff',
+            'install_prompt_template': 'Help me install this skill too: https://github.com/wallmage/handoff',
+            'why_it_helps': 'It preserves decisions, current state, and next steps in a compact transfer block, so you can reset the conversation without losing the work.',
+        },
+    }
 
     return {
         'language': language,
@@ -290,7 +339,7 @@ def build_lesson_plan(data):
             'cache_read_mult': pricing['cache_read_mult'],
             'cache_create_mult': pricing['cache_create_mult'],
         },
-        'subscription_tiers': SUBSCRIPTION_TIERS.get('claude' if provider == 'anthropic' else provider, {}),
+        'subscription_tiers': SUBSCRIPTION_TIERS.get('claude' if provider == 'anthropic' else provider, {}) if provider != 'multi' else {},
         'usage_summary': {
             'total_sessions': summary['sessions'],
             'total_cost': summary['total_cost'],
@@ -299,6 +348,7 @@ def build_lesson_plan(data):
             'daily_cost': round(daily_cost, 2),
             'monthly_projected': round(monthly_cost, 0),
             'daily_sessions': round(daily_sessions, 1),
+            'tools_scanned': summary.get('tools_scanned', 1),
         },
         'worst_day': worst_day,
         'top3_waste': [{'pattern': k, 'cost': round(v, 2)} for k, v in top3_waste],
@@ -308,9 +358,13 @@ def build_lesson_plan(data):
             'per_session': summary['waste_per_session'],
         },
         'model_mix': model_mix,
+        'tool_mix': tool_mix,
+        'provider_mix': provider_mix,
+        'instruction_targets': data.get('instruction_targets', []),
         'cache_explanation': cache_explanation,
         'tool_pricing': PROVIDER_TOOL_PRICING.get(provider, {}),
         'waste_descriptions': waste_descriptions,
+        'behavior_guidance': behavior_guidance,
     }
 
 def main():

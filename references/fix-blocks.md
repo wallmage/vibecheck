@@ -7,7 +7,7 @@ Two versions: strong (default, proven 40-50% waste reduction) and soft (for caut
 For interactive tools:
 ```text
 **Cost rules:** Every turn = context tax. No turn without tool call. No narration/status/"now I'll…". Think → act same turn. Batch independent tool calls (multiple Reads/Edits/files per turn). Chain commands with `&&` when safe. File re-reads banned — content in context after first read. Re-read only if the file changed or accuracy depends on it. User sees zero code/diffs unless asked.
-Verbose output: pipe build/test/install to /tmp/, use --quiet flags, tail -50 max. After 2 failed fixes on same file: stop, re-read error fully, think, single targeted fix. Use /clear or /compact between unrelated tasks.
+Verbose output: pipe build/test/install to /tmp/, use --quiet flags, tail -50 max. After 2 failed fixes on same file: stop, re-read error fully, think, single targeted fix. In long threads, keep replies compact and avoid re-explaining old context unless it helps the next action.
 ```
 
 For always-on agents:

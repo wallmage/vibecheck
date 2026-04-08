@@ -1,0 +1,12 @@
+{
+  "visibility": "approval",
+  "kind": "scan_approval",
+  "run_state": {
+    "state": "idle"
+  },
+  "card": {
+    "title": "Export recent logs",
+    "body": "I need one export command because this environment cannot read your local logs directly.",
+    "command": "python3 SKILL_DIR/scripts/export_logs.py"
+  }
+}

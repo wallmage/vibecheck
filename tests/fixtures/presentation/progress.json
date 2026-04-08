@@ -1,0 +1,9 @@
+{
+  "visibility": "progress",
+  "kind": "scan_progress",
+  "run_state": {
+    "state": "running",
+    "stage": "Analyzing waste patterns"
+  },
+  "message": "Analyzing waste patterns"
+}

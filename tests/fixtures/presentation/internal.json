@@ -1,0 +1,11 @@
+{
+  "visibility": "internal",
+  "kind": "scan_internal",
+  "run_state": {
+    "state": "running"
+  },
+  "event": {
+    "type": "analyze",
+    "summary": "Analyzer wrote structured output to a temp file."
+  }
+}

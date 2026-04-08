@@ -4,9 +4,9 @@
 
 **Jeder Turn, den deine KI macht, kostet Geld.** Sonnet 4.6: $3/$15 pro Million Tokens (Input/Output). Opus 4.6: $5/$25 — 1,67-mal mehr. So sieht das in der Praxis aus:
 
-- Deine KI sagt „OK, ich beheble das" bevor sie es tatsächlich tut. Dieser Narrations-Turn: **$0.031 verschwendet.** Fünf pro Session: **$0.165 weg.**
-- Dein Gespräch erreicht 40 Turns anstatt bei 20 aufgeteilt zu werden. Mehrkosten durch das Wiederlesen des gesamten Verlaufs: **$0.67 verschwendet.**
-- `git add`, dann `git commit`, dann `git push` — drei Turns statt einem verketteten Befehl: **$0.098 verschwendet.**
+- Deine KI sagt „OK, ich beheble das" bevor sie es tatsächlich tut. Dieser Narrations-Turn: **$0.017 verschwendet.** Reale Daten aus 428 Sessions: **$1.03 pro Session weg.**
+- Dein Gespräch erreicht 74 Turns anstatt bei 20 aufgeteilt zu werden. Mehrkosten durch das Wiederlesen des gesamten Verlaufs: **$0.46 verschwendet.**
+- `git add`, dann `git commit`, dann `git push` — drei Turns statt einem verketteten Befehl: **$0.044 verschwendet.**
 
 Das sind 3 der 15 Verschwendungsmuster, die vibecheck erkennt. Jedes wird unten mit Dollarbeträgen erklärt — was schiefläuft und wie wir es beheben.
 
@@ -61,12 +61,12 @@ Deine Daten verlassen dein Gerät nicht. Kein Server, keine API, kein Telemetry.
 
 ```
                           VORHER         JETZT          ÄNDERUNG
-Avg turns/session         36.8           25.9           -10.9
-Avg context window        128.4K         89.9K          -30%
-Wasteful turns            36.7%          8.1%           -28.6%
+Avg turns/session         73.9           21.1           -52.8
+Avg context window        65.6K          33.7K          -49%
+Wasteful turns            73.7%          8.0%           -65.7%
 
-Avg cost/session          $2.62          $1.35          -$1.27
-Monthly spend             $224           $115           -$109
+Avg cost/session          $3.07          $0.46          -$2.61
+Monthly spend             $2,816         $422           -$2,394
 ```
 
 ---
@@ -114,11 +114,11 @@ Diese Multiplikatoren erklären es. Bei 10-20x Nennwert kauft jeder Abo-Dollar w
 
 ### Die Codex-Alternative
 
-Ich habe den Dollar-Wert von Codex noch nicht vollständig gemessen, aber im $20-Tier liefert Codex Plus ungefähr **3x so viel reale Nutzung** wie Claude Pro.
+Ich habe den Dollar-Wert von Codex noch nicht vollständig gemessen, aber im $20-Tier liefert Codex Plus ungefähr **3x so viel Coding-Nutzung** wie Claude Pro.
 
-Warum: ChatGPT-Gespräche (selbst mit dem o4 Extended-Thinking-Modell) zählen nicht gegen dein Codex-Kontingent. Du bekommst das komplette Chat-Produkt kostenlos obendrauf. Also $20 Codex ≈ $60 Claude an realer Nutzung.
+Warum: ChatGPT-Gespräche — auch GPT-5.4 Extended Thinking und Deep Research — zählen nicht gegen dein Codex-Kontingent. Allein das Coding ist 3x Claude Pro, und Pro-Chat gibt's kostenlos obendrauf.
 
-**Wenn du nicht mindestens das Claude $100-Tier kaufen willst, hol dir stattdessen $20 Codex Plus.** Du bekommst kostenloses Deep Research, kostenloses Extended-Thinking-Chat und 3x mehr Coding-Nutzung als Claude Pro.
+**Wenn du nicht mindestens das Claude $100-Tier kaufen willst, hol dir stattdessen $20 Codex Plus.** 3x die Coding-Nutzung von Claude Pro, plus kostenloses GPT-5.4 Extended Thinking und Deep Research.
 
 </details>
 
@@ -129,11 +129,11 @@ Alle unten genannten Dollarbeträge verwenden diese Ausgangslage (Sonnet 4.6):
 | Parameter | Wert |
 |---|---|
 | Session-Länge | 25 Turns |
-| Startkontext | 5.000 Tokens |
-| Wachstum pro Turn | ~3.000 Tokens |
-| Cache-Trefferrate | 90 % |
-| Mid-Session Turn-Kosten | $0.038 |
-| Effiziente Session gesamt | $0.96 |
+| Startkontext | 21.000 Tokens |
+| Wachstum pro Turn | ~600 Tokens |
+| Cache-Trefferrate | 95 % |
+| Mid-Session Turn-Kosten | $0.017 |
+| Effiziente Session gesamt | $0.41 |
 
 Für Opus 4.6 alle Kosten mit 1,67 multiplizieren.
 
@@ -147,25 +147,25 @@ Für Opus 4.6 alle Kosten mit 1,67 multiplizieren.
 
 **Was es ist.** Die KI sagt „OK, ich beheble das" oder „Lass mich zuerst die Datei lesen" — und erledigt die eigentliche Arbeit erst im nächsten Turn. Der Narrations-Turn hat nichts getan: kein Tool-Aufruf, kein Code, kein Dateilesen.
 
-**Die Verschwendung.** Jeder Narrations-Turn kostet **$0.031** (context-Wiederlesen + ~500 Tokens Statustext). Die meisten Sessions haben davon 5: **$0.165/Session verschwendet** — 17 % deiner Rechnung für nichts. Bei 10 Sessions/Tag: **$1.65/Tag ($50/Monat)** nur für Narration.
+**Die Verschwendung.** Jeder Narrations-Turn kostet **$0.017** (context-Wiederlesen + ~500 Tokens Statustext). Reale Daten aus 428 Sessions: **$1.03/Session — 30 % des gesamten Waste**. Bei 10 Sessions/Tag: **$10.30/Tag ($309/Monat)** nur für Narration.
 
-**Der Fix.** vibecheck fügt hinzu: *„Kein Turn ohne Tool-Aufruf. Keine Narration. Im selben Turn denken und handeln."* Eliminiert Narration vollständig. **Spart $0.15–0.18/Session.**
+**Der Fix.** vibecheck fügt hinzu: *„Kein Turn ohne Tool-Aufruf. Keine Narration. Im selben Turn denken und handeln."* Eliminiert Narration vollständig. **Spart ~$0.88/Session.**
 
 #### 2. Context Rot
 
 **Was es ist.** Lange Gespräche werden progressiv teurer. Turn 50 liest alle 49 vorherigen Turns neu. Die gesamten Session-Kosten wachsen quadratisch mit der Länge.
 
-**Die Verschwendung.** Eine 40-Turn-Session: **$1.89.** Zwei 20-Turn-Sessions (gleiche Arbeit): **$1.22.** Die Differenz — **$0.67** — kauft nichts. Bei 100 Turns: eine Session kostet **$5.62** vs. vier 25-Turn-Sessions zu **$3.84.** Das sind **$1.78 verschwendet** durch fehlendes Aufteilen.
+**Die Verschwendung.** Reale Daten aus 428 Sessions: **$0.46/Session — 13 %**. Eine 40-Turn-Session: **$0.70.** Zwei 20-Turn-Sessions (gleiche Arbeit): **$0.60.** Die Differenz — **$0.10** — kauft nichts. Bei 100 Turns: eine Session kostet **$2.53** vs. vier 25-Turn-Sessions zu **$1.64.** Das sind **$0.89 verschwendet** durch fehlendes Aufteilen.
 
-**Der Fix.** Lehrt: *„/clear oder /compact zwischen unverwandten Aufgaben nutzen. Neue Gespräche starten."* **Spart $0.30–0.70/Session bei Nutzern mit Langsession-Gewohnheiten.**
+**Der Fix.** Lehrt: *„/clear oder /compact zwischen unverwandten Aufgaben nutzen. Neue Gespräche starten."* **Spart ~$0.37/Session.**
 
 #### 3. Ping-Pong-Debugging
 
 **Was es ist.** Fixen, brechen, erneut versuchen, wieder brechen. Jeder fehlgeschlagene Versuch fügt Fehlerausgabe zum context hinzu (~4K Tokens pro Zyklus), die bei jedem zukünftigen Turn neu gelesen wird.
 
-**Die Verschwendung.** Drei fehlgeschlagene Zyklen: 6 extra Turns ($0.252) + 12K Tokens toter Fehler ($0.036 context-Steuer). **Gesamt: ~$0.29 pro Episode.** Tritt in ~1/3 der Sessions auf. **Gewichtet: ~$0.10/Session.**
+**Die Verschwendung.** Drei fehlgeschlagene Zyklen: 6 extra Turns ($0.102) + 12K Tokens toter Fehler ($0.036 context-Steuer). **Gesamt: ~$0.14 pro Episode.** Häufigkeit ~10 %. Reale Daten: **$0.015/Session**.
 
-**Der Fix.** Fügt hinzu: *„Nach 2 fehlgeschlagenen Fixes an derselben Datei: stoppen, Fehler vollständig neu lesen, nachdenken, einziger gezielter Fix."* **Spart ~$0.20 pro Episode.**
+**Der Fix.** Fügt hinzu: *„Nach 2 fehlgeschlagenen Fixes an derselben Datei: stoppen, Fehler vollständig neu lesen, nachdenken, einziger gezielter Fix."* **Spart ~$0.01/Session.**
 
 ### Tier 2 — Turn-Dichte (15–20 % der Verschwendung)
 
@@ -173,33 +173,33 @@ Für Opus 4.6 alle Kosten mit 1,67 multiplizieren.
 
 **Was es ist.** Build/Test-Befehl gibt 500 Zeilen (~5K Tokens) ins Gespräch aus. Diese Tokens werden bei jedem zukünftigen Turn neu gelesen.
 
-**Die Verschwendung.** 5K Tokens × 12 verbleibende Turns × $0.30/1M = **$0.018/Instanz** context-Steuer. Passiert 2–3 Mal/Session. Ohne Caching: **$0.180/Instanz** — 10-mal schlechter. **Gesamt: $0.04–0.05/Session.**
+**Die Verschwendung.** 5K Tokens × 12 verbleibende Turns × $0.30/1M = **$0.018/Instanz** context-Steuer. Passiert 2–3 Mal/Session. Ohne Caching: **$0.180/Instanz** — 10-mal schlechter. Reale Daten: **$1.05/Session** — 31 % des gesamten Waste.
 
-**Der Fix.** Fügt hinzu: *„Build/Test-Output nach /tmp/ pipen, --quiet-Flags nutzen, tail -50 max."* **Spart $0.03–0.05/Session.**
+**Der Fix.** Fügt hinzu: *„Build/Test-Output nach /tmp/ pipen, --quiet-Flags nutzen, tail -50 max."* **Spart ~$0.89/Session.**
 
 #### 5. Unchained Commands
 
 **Was es ist.** `npm install` in einem Turn, `npm run build` im nächsten. Zwei context-Wiederlesungen, wenn `&&` sie in einem verkettet.
 
-**Die Verschwendung.** Jede Aufteilung: **$0.023.** Typische Sessions haben 3–4 Aufteilungen. **Gesamt: $0.07–0.09/Session.**
+**Die Verschwendung.** Jede Aufteilung: **$0.010.** Typische Sessions haben 3–4 Aufteilungen. Reale Daten: **$0.14/Session**.
 
-**Der Fix.** Fügt hinzu: *„Befehle mit `&&` verketten, wo sicher."* **Spart $0.06–0.08/Session.**
+**Der Fix.** Fügt hinzu: *„Befehle mit `&&` verketten, wo sicher."* **Spart ~$0.11.**
 
 #### 6. Codebase Wandering
 
 **Was es ist.** Die KI öffnet Datei für Datei — README, package.json, Configs — bevor sie irgendwas tut. Fünf oder mehr aufeinanderfolgende Lesevorgänge vor der ersten Bearbeitung.
 
-**Die Verschwendung.** Fünf unnötige Lesevorgänge: $0.190 in Turns + $0.027 context-Steuer = **$0.217/Episode.** Tritt in ~25 % der Sessions auf. **Gewichtet: ~$0.054/Session.**
+**Die Verschwendung.** Fünf unnötige Lesevorgänge: $0.085 in Turns + $0.027 context-Steuer = **$0.112/Episode.** Reale Daten: **$0.09/Session**.
 
-**Der Fix.** Fördert gezieltes Suchen (grep/glob zuerst), mehrere Lesevorgänge pro Turn bündeln. **Spart ~$0.15 pro Episode.**
+**Der Fix.** Fördert gezieltes Suchen (grep/glob zuerst), mehrere Lesevorgänge pro Turn bündeln. **Spart ~$0.07.**
 
 #### 7. Unbatched Edits
 
 **Was es ist.** Datei A bearbeiten, dann B, dann C — drei Turns, wenn ein Turn mit parallelen Bearbeitungen genügen würde.
 
-**Die Verschwendung.** 2 extra Turns × $0.038 = **$0.076/Instanz.** Passiert in ~60 % der Sessions. **Gewichtet: ~$0.046/Session.**
+**Die Verschwendung.** 2 extra Turns × $0.017 = **$0.034/Instanz.** Reale Daten: **$0.058/Session**.
 
-**Der Fix.** Fügt hinzu: *„Unabhängige Tool-Aufrufe bündeln (mehrere Reads/Edits pro Turn)."* **Spart ~$0.04/Session.**
+**Der Fix.** Fügt hinzu: *„Unabhängige Tool-Aufrufe bündeln (mehrere Reads/Edits pro Turn)."* **Spart ~$0.05.**
 
 ### Tier 3 — Der Schwanz (5–10 % der Verschwendung)
 
@@ -207,23 +207,23 @@ Für Opus 4.6 alle Kosten mit 1,67 multiplizieren.
 
 **Was es ist.** Dieselbe Datei zweimal in einer Session gelesen. Der Inhalt ist nach dem ersten Lesen bereits im context.
 
-**Die Verschwendung.** 1 verschwendeter Turn + doppelter Inhalt = **$0.043/Wiederlesen.** 1–2 pro Session. **Gewichtet: ~$0.039/Session.**
+**Die Verschwendung.** 1 verschwendeter Turn + doppelter Inhalt = **$0.019/Wiederlesen.** Reale Daten: **$0.066/Session**.
 
-**Der Fix.** Fügt hinzu: *„Inhalt ist nach erstem Lesen im context. Nur erneut lesen, wenn Datei geändert wurde."* **Spart ~$0.03/Session.**
+**Der Fix.** Fügt hinzu: *„Inhalt ist nach erstem Lesen im context. Nur erneut lesen, wenn Datei geändert wurde."* **Spart ~$0.05.**
 
 #### 9. Sleep/Poll Loops
 
 **Was es ist.** `sleep 5 && check_status`, 3–5 Mal wiederholt. Jede Abfrage liest den gesamten context neu.
 
-**Die Verschwendung.** 4 Abfragen × $0.038 = **$0.152/Episode.** Tritt in ~20 % der Sessions auf. **Gewichtet: ~$0.030/Session.**
+**Die Verschwendung.** 4 Abfragen × $0.017 = **$0.068/Episode.** Reale Daten: **$0.043/Session**.
 
-**Der Fix.** Fügt hinzu: *„--wait-Flags oder run_in_background nutzen."* **Spart ~$0.12/Episode.**
+**Der Fix.** Fügt hinzu: *„--wait-Flags oder run_in_background nutzen."* **Spart ~$0.034.**
 
 #### 10. Failed Retries
 
 **Was es ist.** Befehl schlägt fehl, KI führt exakt denselben Befehl erneut aus. Fehlerausgabe jetzt zweimal im context.
 
-**Die Verschwendung.** **$0.042/Retry.** Tritt in ~30 % der Sessions auf. **Gewichtet: ~$0.013/Session.**
+**Die Verschwendung.** **$0.019/Retry.** Reale Daten: **$0.080/Session**.
 
 **Der Fix.** Gleiche Regel wie bei Ping-Pong: *„Stoppen, Fehler neu lesen, nachdenken, einziger gezielter Fix."*
 
@@ -231,17 +231,17 @@ Für Opus 4.6 alle Kosten mit 1,67 multiplizieren.
 
 **Was es ist.** KI schlägt eigene Tool-Definitionen nach — Informationen, die sie bereits hat. Fügt 2K+ Tokens zum context hinzu.
 
-**Die Verschwendung.** **$0.052/Lookup.** Tritt in ~40 % der Sessions auf. **Gewichtet: ~$0.021/Session.**
+**Die Verschwendung.** **$0.023/Lookup.** Reale Daten: **$0.023/Session**.
 
-**Der Fix.** „Kein Turn ohne Tool-Aufruf" entmutigt Discovery-Turns. **Spart ~$0.02/Session.**
+**Der Fix.** „Kein Turn ohne Tool-Aufruf" entmutigt Discovery-Turns. **Spart ~$0.02.**
 
 #### 12. Git Ceremony
 
 **Was es ist.** `git add` → `git status` → `git commit` → `git push`, vier Turns. `git add -A && git commit -m "msg" && git push` ist einer.
 
-**Die Verschwendung.** 3 extra Turns + Git-Output = **$0.098/Instanz.** Passiert in ~70 % der Sessions. **Gewichtet: ~$0.069/Session.**
+**Die Verschwendung.** 3 extra Turns + Git-Output = **$0.044/Instanz.** Reale Daten: **$0.003/Session**.
 
-**Der Fix.** Fügt hinzu: *„Git-Befehle mit `&&` verketten."* **Spart ~$0.06/Session.**
+**Der Fix.** Fügt hinzu: *„Git-Befehle mit `&&` verketten."* **Spart ~$0.003.**
 
 ### Tier 4 — Always-On-Agents (OpenClaw usw.)
 
@@ -284,7 +284,7 @@ Deine Instruktionsdatei wird bei jedem Turn gelesen — eine fixe Steuer, die du
 - **Pass 3 (High-Fidelity):** Tutorial- und Coaching-Text entfernen, den Menschen brauchen, die KI nicht. ~10–15 %.
 - **Pass 4 (Telegramm):** Vollständige Kurzschrift-Umschreibung für KI-only-Dateien. ~15–25 % (nur mit Erlaubnis).
 
-Eine 10K-Token-Datei, auf 6K komprimiert, spart $0.057/Session. Bei 10 Sessions/Tag: **$0.57/Tag ($17/Monat).**
+Eine 10K-Token-Datei, auf 6K komprimiert, spart $0.044/Session. Bei 10 Sessions/Tag: **$0.44/Tag ($13/Monat).**
 
 ### Output-Unterdrückung
 
@@ -302,27 +302,29 @@ Output-Tokens kosten 5-mal so viel wie Input ($15 vs. $3/MTok bei Sonnet). Die K
 
 | # | Muster | Durchschn. Verschwendung/Session | Durchschn. Ersparnis |
 |---|---|---|---|
-| 1 | Idle Narration | $0.165 | $0.155 |
-| 2 | Context Rot | $0.150 | $0.120 |
-| 3 | Ping-Pong-Debugging | $0.097 | $0.067 |
-| 4 | Verbose Output | $0.045 | $0.035 |
-| 5 | Unchained Commands | $0.080 | $0.065 |
-| 6 | Codebase Wandering | $0.054 | $0.040 |
-| 7 | Unbatched Edits | $0.046 | $0.038 |
-| 8 | File Re-reads | $0.039 | $0.030 |
-| 9 | Sleep/Poll Loops | $0.030 | $0.025 |
-| 10 | Failed Retries | $0.013 | $0.010 |
-| 11 | Schema Lookups | $0.021 | $0.018 |
-| 12 | Git Ceremony | $0.069 | $0.058 |
-| + | Komprimierung | $0.057 | $0.057 |
+| 1 | Idle Narration | $1.03 | $0.88 |
+| 2 | Context Rot | $0.46 | $0.37 |
+| 3 | Ping-Pong-Debugging | $0.015 | $0.01 |
+| 4 | Verbose Output | $1.05 | $0.89 |
+| 5 | Unchained Commands | $0.14 | $0.11 |
+| 6 | Codebase Wandering | $0.09 | $0.07 |
+| 7 | Unbatched Edits | $0.058 | $0.05 |
+| 8 | File Re-reads | $0.066 | $0.05 |
+| 9 | Sleep/Poll Loops | $0.043 | $0.034 |
+| 10 | Failed Retries | $0.08 | $0.06 |
+| 11 | Schema Lookups | $0.023 | $0.02 |
+| 12 | Git Ceremony | $0.003 | $0.003 |
+| + | Komprimierung | $0.044 | $0.044 |
 | + | Output-Unterdrückung | $0.047 | $0.038 |
-| | **Gesamt** | **$0.913** | **$0.756** |
+| | **Gesamt** | **$3.15*** | **$2.61** |
 
-**Typische verschwenderische Session: $1.87. Nach vibecheck: $1.11. Ersparnis: 41 %.**
+*Einzelne Muster können sich im selben Turn überlappen — Summen spiegeln Einzelmuster-Messung wider. Tatsächliche Gesamtersparnis: $3.07 → $0.46 (siehe Fazit).
 
-- **Geringe Verschwendung** (kurze Sessions, wenige Muster): 25–35 %
-- **Moderate Verschwendung** (durchschnittlicher Nutzer): 40–50 %
-- **Hohe Verschwendung** (lange Sessions, mehrere Muster): 50–65 %
+**Typische verschwenderische Session: $3.07. Nach vibecheck: $0.46. Ersparnis: 85 %.**
+
+- **Geringe Verschwendung** (kurze Sessions, wenige Muster): 40–55 %
+- **Moderate Verschwendung** (durchschnittlicher Nutzer): 55–70 %
+- **Hohe Verschwendung** (lange Sessions, mehrere Muster): 70–85 %
 
 ### Always-On-Agents
 
@@ -353,10 +355,10 @@ macOS, Windows, Linux, iPad via SSH. Python 3.8+, keine Abhängigkeiten.
 
 Alle Kostenschätzungen verwenden das oben beschriebene Referenz-Szenario. Wichtige Annahmen:
 
-- **90 % Prompt-Cache-Trefferrate** — typisch für schnelle Coding-Sessions. Langsamere Sessions haben höhere Kosten.
+- **95 % Prompt-Cache-Trefferrate** — typisch für schnelle Coding-Sessions. Langsamere Sessions haben höhere Kosten.
 - **25 produktive Turns/Session** — verschwenderische Sessions fügen 8–12 extra Turns durch Narration, Retries und unkettete Befehle hinzu.
-- **3.000 Tokens/Turn-Wachstum** — ausführliche Sessions können 4.000–5.000 erreichen.
-- **Effektive Input-Rate: $0.57/1M** — gemischt 90 % gecacht ($0.30) + 10 % ungecacht ($3.00).
+- **600 Tokens/Turn-Wachstum** — ausführliche Sessions können 1.000–2.000 erreichen.
+- **Effektive Input-Rate: $0.435/1M** — gemischt 95 % gecacht ($0.30) + 5 % ungecacht ($3.00).
 - **Context-Steuerrate: $0.30/1M** — gecachte Input-Rate für permanente context-Ergänzungen.
 
 Schätzungen sind konservativ. Reale Einsparungen können Prognosen für Nutzer mit langen Sessions, großen Instruktionsdateien oder intensivem Debugging übertreffen.

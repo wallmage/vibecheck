@@ -1,0 +1,13 @@
+{
+  "visibility": "result",
+  "kind": "scan_failure",
+  "run_state": {
+    "state": "failed",
+    "userMessage": "I couldn't finish the scan."
+  },
+  "error": {
+    "user_message": "I couldn't finish the scan.",
+    "technical_details_disclosure_label": "Technical details",
+    "technical_details_default": "collapsed"
+  }
+}

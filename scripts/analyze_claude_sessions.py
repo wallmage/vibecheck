@@ -2,7 +2,9 @@
 """Parse and analyze Claude Code session logs for cost and waste patterns."""
 import json, sys, os
 from collections import defaultdict
+from datetime import datetime
 from pathlib import Path
+from activity_duration import estimate_active_duration_minutes
 from model_pricing import MODEL_PATTERNS, PRICING, get_billing_mode, get_pricing, get_pricing_metadata
 
 def calc_cost(usage, model='sonnet'):
@@ -17,6 +19,15 @@ def calc_cost(usage, model='sonnet'):
         + cc * p.get('cache_write_price', p['input'] * p['cache_create_mult'])
         + out * p['output']
     ) / 1_000_000
+
+
+def parse_timestamp(value):
+    if not value or not isinstance(value, str):
+        return None
+    try:
+        return datetime.fromisoformat(value.replace('Z', '+00:00'))
+    except ValueError:
+        return None
 
 
 def build_analysis_confidence(results):
@@ -161,6 +172,11 @@ def analyze_session(filepath):
             break
     if not first_ts:
         return None
+    last_ts = None
+    for r in reversed(records):
+        if 'timestamp' in r:
+            last_ts = r['timestamp']
+            break
 
     model = detect_model(records)
 
@@ -194,6 +210,7 @@ def analyze_session(filepath):
             'output_tokens': out,
             'text_chars': text_output,
             'cost': cost,
+            'context_window_tokens': usage.get('input_tokens', 0) + usage.get('cache_read_input_tokens', 0) + usage.get('cache_creation_input_tokens', 0),
             'cache_read': usage.get('cache_read_input_tokens', 0),
             'cache_create': usage.get('cache_creation_input_tokens', 0),
         })
@@ -432,6 +449,11 @@ def analyze_session(filepath):
 
     # Detect platform
     detected_platform = detect_platform(records)
+    first_dt = parse_timestamp(first_ts)
+    last_dt = parse_timestamp(last_ts)
+    duration_minutes = round((last_dt - first_dt).total_seconds() / 60, 1) if first_dt and last_dt and last_dt > first_dt else None
+    activity_timestamps = [parse_timestamp(r.get('timestamp')) for r in records if isinstance(r, dict)]
+    active_session_duration_minutes = estimate_active_duration_minutes(activity_timestamps)
 
     return {
         'file': os.path.basename(filepath),
@@ -443,6 +465,10 @@ def analyze_session(filepath):
         'total_output_tokens': total_output,
         'total_cache_read': total_cache_read,
         'total_cache_create': total_cache_create,
+        'duration_minutes': duration_minutes,
+        'active_session_duration_minutes': active_session_duration_minutes,
+        'start_context_window_tokens': assistant_turns[0].get('context_window_tokens', 0) if assistant_turns else None,
+        'end_context_window_tokens': assistant_turns[-1].get('context_window_tokens', 0) if assistant_turns else None,
         'cost_per_turn': round(total_cost / total_turns, 4) if total_turns > 0 else 0,
         'waste': {
             'idle_narration': {
@@ -638,6 +664,8 @@ def main():
             'total_output_tokens': total_output_tokens,
             'total_cache_read': total_cache_read,
             'total_cache_create': total_cache_create,
+            'avg_session_duration_minutes': round(sum(r['duration_minutes'] for r in results if r.get('duration_minutes') is not None) / max(1, len([r for r in results if r.get('duration_minutes') is not None])), 1) if any(r.get('duration_minutes') is not None for r in results) else None,
+            'avg_active_session_duration_minutes': round(sum(r['active_session_duration_minutes'] for r in results if r.get('active_session_duration_minutes') is not None) / max(1, len([r for r in results if r.get('active_session_duration_minutes') is not None])), 1) if any(r.get('active_session_duration_minutes') is not None for r in results) else None,
         },
         'waste_breakdown': {},
         'sessions': results,

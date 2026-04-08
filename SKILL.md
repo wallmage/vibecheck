@@ -15,6 +15,28 @@ This skill teaches users where their AI coding spend goes, finds waste in suppor
 - Default to the user's language. Prefer the language they are writing in. Use system locale only as a fallback.
 - Use the detected tool name and detected instruction file name in all user-facing text. Never say "Claude Code" if they use Cursor. Never say "CLAUDE.md" if their file is `.cursorrules`.
 - Be honest about capability. If full log analysis is not supported for the detected tool, say so and switch to education + instruction-file optimization. Do not route through a broken scan path.
+- **Quiet execution only.** Internal detection, scan, analysis, and file-inspection steps are not user-facing content. Run them silently with stdout/stderr redirected to temp files. Do not dump raw JSON, command traces, `cat` output, or long shell logs into the chat. The user should mainly see the final explanation, report, approval prompts, and actionable results.
+
+## Quiet execution protocol
+
+- Redirect every intermediate script run to temp files. Treat `/tmp/vibecheck_*.json` and `/tmp/vibecheck_*.err` as working memory, not user output.
+- Never `cat` a full JSON file into the conversation. Do not paste raw tool output unless the user explicitly asks for it.
+- Prefer one visible output block per phase at most: the export command when sandboxed, the final plain-language explanation, or the final report/comparison summary.
+- If a script fails, inspect the error file briefly and summarize the blocker in one or two sentences. Only surface a short excerpt if the exact error text is necessary to unblock the user.
+- During successful runs, do not narrate the internal steps. Move from quiet execution to synthesized results.
+
+## Scan presentation contract
+
+- Every scan item belongs to one of four visibility classes: `internal`, `progress`, `result`, `approval`.
+- `internal` includes commands, temp-file reads, raw JSON, stdout/stderr, retries, and trace data. Never show it in the main conversation.
+- `progress` is one calm status row only. Maximum one visible progress item at a time.
+- `result` is the polished user-facing summary or lesson content.
+- `approval` is for export instructions and user confirmation prompts.
+- Use these exact progress stages for the default quiet scan flow: `Checking your setup`, `Finding recent sessions`, `Analyzing waste patterns`, `Preparing your report`.
+- On completion, remove the progress item and reveal the result payload. Do not stack the result underneath the running state.
+- On failure, respond with a short diagnosis first and keep raw stderr behind a collapsed `Technical details` disclosure if you need to show any excerpt at all.
+- For the full host/runtime contract, read [references/scan-presentation-contract.md](references/scan-presentation-contract.md) and its machine-readable companion [references/scan-presentation-contract.json](references/scan-presentation-contract.json).
+- Use `scripts/scan_state.py` for canonical `internal`, `progress`, `approval`, and `failure` payload shapes. Use `scripts/present_scan.py` for the canonical `result` payload.
 
 ## Setup
 
@@ -41,24 +63,60 @@ Then SKILL_DIR = `/tmp/vibecheck`.
 
 ### 1. Detect the user's tool
 
+Visible state before detection: `progress` = `Checking your setup`
+
+If the runtime supports structured payloads, emit:
+
 ```bash
-python3 SKILL_DIR/scripts/detect_tool.py [optional_project_dir] > /tmp/vibecheck_tool_detect.json
+python3 SKILL_DIR/scripts/scan_state.py progress "Checking your setup" >/tmp/vibecheck_progress.json 2>/tmp/vibecheck_progress.err
 ```
 
-Read the JSON. Key fields: `primary_tool_name`, `instruction_file`, `can_analyze`, `analysis_mode`, `note`.
+```bash
+python3 SKILL_DIR/scripts/detect_tool.py [optional_project_dir] >/tmp/vibecheck_tool_detect.json 2>/tmp/vibecheck_tool_detect.err
+```
+
+Read the JSON. Key fields: `primary_tool_name`, `instruction_file`, `can_analyze`, `analysis_mode`, `note`, `installed_tools`, `analyzable_tools`, `instruction_targets`, `optimization_targets`.
+
+Do this quietly. Do not print the command output or `cat` the JSON back to the user.
 
 If `needs_manual_input` is true, ask for the project folder or tool name.
 
-If multiple tools are detected (`installed_tools` has more than one entry with `can_analyze`), mention this: "I see you use [Tool A] and [Tool B]. I'll scan [primary] first — you can run `/vibecheck scan` again for the other."
+If multiple analyzable tools are detected, do not limit the scan to the current tool. Default to a unified machine-wide scan across all detected supported tools, then present one merged result with per-tool, per-model, per-platform, and per-provider breakdowns.
 
 For current support details, read [references/capabilities.md](references/capabilities.md).
 
 ### 2. Branch based on analysis support
 
-If `can_analyze` is true → run the data-driven scan (step 3).
-If `can_analyze` is false → explain that the tool was detected but full session-cost analysis is not available for that log format yet. Continue with cost education using industry averages + instruction-file optimization + optional compression. Skip step 3.
+If `analyzable_tools` is non-empty → run the unified all-tools scan (step 3).
+If `analyzable_tools` is empty but `can_analyze` is true → run the single-tool data-driven scan (step 3).
+If neither is true → explain that the detected tools do not currently expose a reliable supported session-cost scan. Continue with cost education using industry averages + instruction-file optimization + optional compression. Skip step 3.
 
 ### 3. Run the scan
+
+Default behavior: scan all detected supported tools on this machine, not just the tool currently running the skill.
+
+**Unified scan flow** (preferred whenever `analyzable_tools` is non-empty):
+
+Visible state before unified detection: `progress` = `Checking your setup`
+
+```bash
+python3 SKILL_DIR/scripts/scan_all_tools.py 14 [optional_project_dir] >/tmp/vibecheck_analysis.json 2>/tmp/vibecheck_scan_all.err
+python3 SKILL_DIR/scripts/explain.py /tmp/vibecheck_analysis.json >/tmp/vibecheck_lesson.json 2>/tmp/vibecheck_explain.err
+python3 SKILL_DIR/scripts/present_scan.py /tmp/vibecheck_analysis.json [instruction_file_if_known] >/tmp/vibecheck_result.json 2>/tmp/vibecheck_present.err
+```
+
+This unified analysis already merges all detected supported tools and exposes:
+
+- per-tool breakdown
+- per-provider breakdown
+- per-model breakdown
+- per-platform breakdown
+- unified waste breakdown across all tools
+- all detected instruction targets for optimization
+- all detected optimization targets across tools, including project instruction files and machine-wide settings/config files
+- ranked tool statistics so the most-used tool is treated as tool `#1`
+
+Only fall back to the single-tool flow below if the runtime explicitly needs it.
 
 All supported tools follow the same three-step pattern. Pick the scripts that match `analysis_mode`:
 
@@ -78,13 +136,46 @@ All supported tools follow the same three-step pattern. Pick the scripts that ma
 
 **Generic scan flow** (same for every tool):
 
+Visible state before the find script: `progress` = `Finding recent sessions`
+
+If the runtime supports structured payloads, emit:
+
 ```bash
-python3 SKILL_DIR/scripts/<find_script> 14 > /tmp/vibecheck_sessions.json
-python3 SKILL_DIR/scripts/<analyze_script> /tmp/vibecheck_sessions.json > /tmp/vibecheck_analysis.json
-python3 SKILL_DIR/scripts/explain.py /tmp/vibecheck_analysis.json > /tmp/vibecheck_lesson.json
+python3 SKILL_DIR/scripts/scan_state.py progress "Finding recent sessions" >/tmp/vibecheck_progress.json 2>/tmp/vibecheck_progress.err
+```
+
+```bash
+python3 SKILL_DIR/scripts/<find_script> 14 >/tmp/vibecheck_sessions.json 2>/tmp/vibecheck_find.err
+```
+
+Visible state before the analyze script: `progress` = `Analyzing waste patterns`
+
+If the runtime supports structured payloads, emit:
+
+```bash
+python3 SKILL_DIR/scripts/scan_state.py progress "Analyzing waste patterns" >/tmp/vibecheck_progress.json 2>/tmp/vibecheck_progress.err
+```
+
+```bash
+python3 SKILL_DIR/scripts/<analyze_script> /tmp/vibecheck_sessions.json >/tmp/vibecheck_analysis.json 2>/tmp/vibecheck_analyze.err
+```
+
+Visible state before the explain/result stage: `progress` = `Preparing your report`
+
+If the runtime supports structured payloads, emit:
+
+```bash
+python3 SKILL_DIR/scripts/scan_state.py progress "Preparing your report" >/tmp/vibecheck_progress.json 2>/tmp/vibecheck_progress.err
+```
+
+```bash
+python3 SKILL_DIR/scripts/explain.py /tmp/vibecheck_analysis.json >/tmp/vibecheck_lesson.json 2>/tmp/vibecheck_explain.err
+python3 SKILL_DIR/scripts/present_scan.py /tmp/vibecheck_analysis.json [instruction_file_if_known] >/tmp/vibecheck_result.json 2>/tmp/vibecheck_present.err
 ```
 
 Do not paste raw JSON to the user. Read the lesson JSON and explain results in plain language.
+Do not `cat` `/tmp/vibecheck_sessions.json`, `/tmp/vibecheck_analysis.json`, `/tmp/vibecheck_lesson.json`, or `/tmp/vibecheck_result.json` into chat.
+Reveal the result payload first: headline, summary metrics, top 3 waste patterns, one next action. If the scan merged multiple tools, also surface the unified breakdowns by tool, provider, model, and platform before teaching methodology.
 
 **Do not write inline Python to inspect the analysis JSON.** Use `report.py` and `explain.py` — they handle all formatting. If you must inspect a value, the analysis JSON schema is:
 - `summary.total_sessions` (int), `summary.total_cost` (float), `summary.avg_cost_per_session` (float), `summary.avg_turns_per_session` (float), `summary.waste_percentage` (float), `summary.total_waste` (float)
@@ -98,6 +189,8 @@ Explain briefly (2-3 sentences):
 > Your AI chat logs contain timestamps, token counts, and tool calls — that's what I need to find where your money goes. I can't access them directly because this tool runs in a virtual machine that's walled off from your personal files. But we can copy just the last 14 days over — takes 5 seconds.
 
 Show exactly ONE command based on `platform`. Do NOT show multiple commands or alternatives.
+This is an `approval` card, not a progress dump. Show one sentence, one command, and nothing else from the internal scan trace.
+If the runtime supports structured payloads, model this with `scripts/scan_state.py approval ...`.
 
 macOS/Linux: `python3 SKILL_DIR/scripts/<sandbox_export>`
 Windows: `python SKILL_DIR/scripts/<sandbox_export>`
@@ -106,19 +199,35 @@ Tell them: "Open Terminal (or Command Prompt), paste this, hit Enter. Tell me wh
 
 Wait for response. If they confirm done, re-run with `~/vibecheck-logs`:
 ```bash
-python3 SKILL_DIR/scripts/<find_script> 14 ~/vibecheck-logs > /tmp/vibecheck_sessions.json
+python3 SKILL_DIR/scripts/<find_script> 14 ~/vibecheck-logs >/tmp/vibecheck_sessions.json 2>/tmp/vibecheck_find.err
 ```
-If they skip, continue with industry averages.
+If they skip, continue with industry averages. After they confirm export, return to the quiet progress flow. Do not replay the internal discovery steps.
+
+**If detect/find/analyze/explain/present fails:** inspect the matching `/tmp/vibecheck_*.err` file quietly. Tell the user what blocked the scan in 1-2 sentences. Only include a short raw excerpt when it is necessary to unblock them, and keep it behind a collapsed `Technical details` disclosure. If the runtime supports structured payloads, model this with `scripts/scan_state.py failure ...`.
 
 ### 4. Teach
 
 The teaching flow is interactive — pause between sections and wait for the user to respond before continuing. This is education, not a report dump.
+But the scan is now report-first: show the polished result summary before the teaching flow begins.
 
 Use `waste_descriptions`, `worst_day`, `top3_waste`, and `cache_explanations` from the lesson JSON when available. For the full pattern library and analogies, read [references/waste-patterns.md](references/waste-patterns.md).
+
+**Result reveal — always first**
+
+Before Lesson 1, read `/tmp/vibecheck_result.json` quietly and present the scan in this order:
+
+1. Headline takeaway
+2. Summary metrics: sessions scanned, avg cost/session, waste percentage
+3. Top 3 waste patterns in plain language
+4. If present, unified breakdowns by tool, model, provider, and platform
+5. One next action
+
+Only after the user has seen the findings should you transition into the teaching flow below.
 
 **Lesson 1 — "What are you actually paying for?"**
 
 Start with a quick privacy note: "Everything I'm about to show you stays on your machine — no data leaves, no servers involved." Then explain subscription vs actual token usage. Key insight: every message re-reads the entire conversation. Message #50 re-reads all 49 previous messages. The AI spends most of your money re-reading, not thinking. Show their tier if known (Claude $20→~$200 API value, $100→~$1,000, $200→~$4,000).
+Do not lead with this lesson before the user has already seen their headline finding.
 
 End with: **"Make sense so far? Ask me anything. When you're ready, I'll show you where the money actually goes — it's not where you'd think."** WAIT for response.
 
@@ -138,18 +247,33 @@ End with: **"The fix is simple — one paragraph added to your [instruction_file
 
 This is the core of vibecheck — a step-by-step guided optimization where the user controls every change.
 
-**Always backup first.** Before touching the instruction file, create a backup:
+**Tool order first:** After the initial scan, rank tools by actual usage. Prefer scanned session count; if a tool was detected but not scored, fall back to local log count. Optimize tool `#1` first (the daily driver), then tool `#2`, then tool `#3`.
+
+**Health markers:** For scored tools or areas with waste ratio `<= 10%`, mark them as `Good ✅`. For scored tools or areas with waste ratio `> 10%`, mark them as `Waste ❌`. For detected but unscored tools, keep scan status separate instead of pretending they are already good.
+
+**Always backup first.** Before touching any instruction file, create a backup.
 ```bash
 cp /path/to/instruction_file /path/to/instruction_file.vibecheck-backup
 ```
-Tell the user: "I've backed up your [file name] — you can revert anytime with `cp [file].vibecheck-backup [file]`."
+Tell the user which files were backed up and how to revert each one.
 
-**If no instruction file exists:** Offer to create one. "You don't have a [CLAUDE.md / .cursorrules / etc.] yet — that's the file your AI reads for project-specific rules. Want me to create one with the cost-saving rules? It's just a text file in your project root." Tell the user they can simply delete the file if they don't want it.
+**Optimization targets:** Use `optimization_targets` from detect/scan output. This list can include project instruction files, machine-wide instruction files, and machine-wide settings/config files. Prefer machine-wide instruction targets first when a tool exposes them (for example `~/.codex/AGENTS.md` or `~/.claude/CLAUDE.md`) so one fix can improve every project; treat per-project files as fallback exceptions, not the default first move. If the project contains multiple tool instruction files (for example `CLAUDE.md`, `AGENTS.md`, `.cursorrules`, `GEMINI.md`), treat them as one optimization batch only when the tool does not have a stronger machine-wide target.
+
+**Optimization logs:** After the initial scan or after a tool-specific win, you can export a local Markdown log with:
+```bash
+python3 SKILL_DIR/scripts/export_optimization_log.py /tmp/vibecheck_result.json
+python3 SKILL_DIR/scripts/export_optimization_log.py /tmp/vibecheck_tool_success.json
+```
+Use these exports for the polished local audit trail, not raw transcript dumps.
+
+**If no instruction file exists for a detected tool:** Do not create one. Skip file edits for that tool and keep the optimization in recommendations only.
 
 **Generate the analysis report** (for your reference, not shown raw to user):
 ```bash
-python3 SKILL_DIR/scripts/report.py /tmp/vibecheck_analysis.json /path/to/instruction_file
+python3 SKILL_DIR/scripts/report.py /tmp/vibecheck_analysis.json /path/to/instruction_file >/tmp/vibecheck_report.txt 2>/tmp/vibecheck_report.err
 ```
+
+Read the report quietly and summarize it in natural language. Do not dump the full report text into chat unless the user explicitly asks to see it verbatim.
 
 **How to build the steps:** Read the waste_breakdown from the analysis. Sort patterns by per-session cost (highest first). Group related patterns into 3-4 optimization steps. The grouping depends on what the data shows — use judgment. Typical grouping:
 
@@ -159,6 +283,8 @@ python3 SKILL_DIR/scripts/report.py /tmp/vibecheck_analysis.json /path/to/instru
 - **Step 4: User habits** — things that can't go in the instruction file (start fresh chats between tasks, use /clear after long debugging, choose the right model). Teach these verbally.
 
 If a pattern has near-zero cost for this user, skip it entirely. If only 2 steps have meaningful savings, do 2 steps. Don't pad.
+
+**Per-tool scan summary before editing:** Before starting tool `#1`, show that tool's factual header first: average cost/session, average turns/session, average session duration if available, start/end context window if available, the top 3 waste areas, overall waste ratio, and the projected after-optimization cost/session plus monthly savings. Do the same again for tool `#2`, tool `#3`, and later tools.
 
 **For each step, follow this exact flow:**
 
@@ -183,7 +309,33 @@ If a pattern has near-zero cost for this user, skip it entirely. If only 2 steps
    - **No / skip** → ask briefly: "Any concern, or just skip this one?" If they share thoughts, acknowledge them. Then move to next step. Never push.
    - **Modify** → if they want a softer version, offer the alternative from [references/fix-blocks.md](references/fix-blocks.md).
 
+**Structured helper payloads:** If the runtime supports structured payloads, use:
+- `python3 SKILL_DIR/scripts/present_optimization_step.py /tmp/vibecheck_result.json <tool_id> <step_rank>` to build the approval card for the next step.
+- `python3 SKILL_DIR/scripts/present_tool_success.py /tmp/vibecheck_result.json <tool_id>` to reveal the per-tool win and prompt the user to continue to the next ranked tool.
+
 **Every step is optional.** The user can accept steps 1 and 3 but skip 2 and 4. That's fine. Each step is independent.
+
+**After tool `#1` finishes:** Show a before-vs-projected comparison for that tool alone first. Then ask one bulk question: "Do you want me to auto-apply the same treatment to your other tools/projects?" If yes, do not keep walking tool `#2`, `#3`, etc. step by step — auto-apply the remaining planned fixes across the rest of the detected tools/projects.
+
+Use these helper scripts for that handoff:
+- `python3 SKILL_DIR/scripts/present_bulk_apply_prompt.py /tmp/vibecheck_result.json <tool_id>` to build the approval card after tool `#1`
+- `python3 SKILL_DIR/scripts/vibecheck_optimize_bulk.py /tmp/vibecheck_result.json <tool_id>` to apply the remaining plan after approval
+- `python3 SKILL_DIR/scripts/present_final_success.py /tmp/vibecheck_result.json` to show the all-tools projected win before education starts
+
+**Education comes last.** After all optimization is done, show the final success, the statistics, and the before/after comparison first. Only then begin the human education section.
+
+**Post-optimization education (last step):** Teach the continuity lesson here, not during the initial scan. Use `behavior_guidance` from `scripts/explain.py`.
+
+- Explain why overloaded context is bad in two dimensions: it costs more because every turn re-reads more stale material, and it performs worse because the model has to sort through too much old state.
+- Explain that people avoid clearing because continuity matters. Do not frame it as laziness. The real friction is fear of losing background, decisions, and momentum.
+- Give a rule of thumb: use focused work chunks that usually fit in **5-10 active minutes**, and treat **~30-40 turns** as the upper comfort band before context cost usually starts snowballing. Between unrelated slices, start a fresh chat or use `/clear` when the tool supports it. Teach this as a habit only — never as an instruction-file rule.
+- Explain that waiting for platform auto-compaction is not a win: by then the user already paid the cost of the bloated thread, and the model may still lose detail when the platform compresses history.
+- Teach the continuity system:
+  - persistent behavior rules belong in `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, or `Memory.md` when supported
+  - project background belongs in well-structured local `.md` docs, split by topic and kept slice-sized
+  - the instruction file should point to those docs with a short index instead of embedding everything inline
+- Only after that, offer the sister `handoff` skill with one static GitHub install prompt. Do not use local scripts, subfolder installs, or `/vibecheck handoff`. This is the final step of the whole flow.
+- Present the install as a copyable prompt, for example: `Help me install this skill too: <handoff GitHub URL>`.
 
 **Adapt format to the tool:**
 - CLAUDE.md / AGENTS.md → markdown paragraphs
@@ -200,7 +352,7 @@ The rules below are the building blocks. Pick the ones that match the user's act
 For interactive tools (Claude Code, Cursor, Codex, etc.):
 ```
 **Cost rules:** Every turn = context tax. No turn without tool call. No narration/status/"now I'll…". Think → act same turn. Batch independent tool calls (multiple Reads/Edits/files per turn). Chain commands with `&&` when safe. File re-reads banned — content in context after first read. Re-read only if the file changed or accuracy depends on it. User sees zero code/diffs unless asked.
-Verbose output: pipe build/test/install to /tmp/, use --quiet flags, tail -50 max. After 2 failed fixes on same file: stop, re-read error fully, think, single targeted fix. Use /clear or /compact between unrelated tasks.
+Verbose output: pipe build/test/install to /tmp/, use --quiet flags, tail -50 max. After 2 failed fixes on same file: stop, re-read error fully, think, single targeted fix. In long threads, keep replies compact and avoid re-explaining old context unless it helps the next action.
 ```
 
 For always-on agents (OpenClaw, etc.):
@@ -221,8 +373,8 @@ Before starting, read these reference files for the technique catalog and detail
 **Run these scripts** (do not skip — they handle Pass 1 mechanically and establish the baseline):
 
 ```bash
-python3 SKILL_DIR/scripts/measure.py /path/to/instruction_file
-python3 SKILL_DIR/scripts/strip_markdown.py /path/to/instruction_file /path/to/instruction_file.working
+python3 SKILL_DIR/scripts/measure.py /path/to/instruction_file >/tmp/vibecheck_measure.txt 2>/tmp/vibecheck_measure.err
+python3 SKILL_DIR/scripts/strip_markdown.py /path/to/instruction_file /path/to/instruction_file.working >/tmp/vibecheck_strip.out 2>/tmp/vibecheck_strip.err
 ```
 
 **Three modes** (default to Strict Lossless):
@@ -243,7 +395,7 @@ python3 SKILL_DIR/scripts/strip_markdown.py /path/to/instruction_file /path/to/i
 After all optimization steps (whether the user accepted all, some, or none):
 
 ```bash
-python3 SKILL_DIR/scripts/compare.py /tmp/vibecheck_analysis.json
+python3 SKILL_DIR/scripts/compare.py /tmp/vibecheck_analysis.json >/tmp/vibecheck_compare.txt 2>/tmp/vibecheck_compare.err
 ```
 
 Snapshots persist in `~/.vibecheck/snapshots/`. First run shows projections, subsequent runs show actual delta with ✅/⚠️ flags.
@@ -265,6 +417,7 @@ End with: "Run `/vibecheck scan` again in 1-2 weeks to see your ACTUAL savings. 
 ## References
 
 - Capabilities and support matrix: [references/capabilities.md](references/capabilities.md)
+- Scan presentation contract: [references/scan-presentation-contract.md](references/scan-presentation-contract.md)
 - Waste pattern explanations and analogies: [references/waste-patterns.md](references/waste-patterns.md)
 - Alternative (softer) fix blocks: [references/fix-blocks.md](references/fix-blocks.md)
 - Instruction file compressor (full operating manual): [references/compressor.md](references/compressor.md)

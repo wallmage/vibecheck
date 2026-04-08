@@ -59,12 +59,189 @@ def main():
     print(f"  Confidence note:     {analysis_confidence['reason']}")
     print()
 
+    header_statistics = data.get('header_statistics', {})
+    duration_notes = data.get('duration_notes', {})
+    if header_statistics:
+        print("-" * 70)
+        print("HEADER STATISTICS")
+        print("-" * 70)
+        print()
+        overall = header_statistics.get('overall', {})
+        overall_health = overall.get('health', {})
+        if overall_health:
+            print(f"  Overall:             {overall_health.get('emoji', '')} {overall_health.get('label', '')} ({overall.get('avg_waste_ratio_pct', 0):.1f}% waste)")
+            print(f"  Log session duration:{'':<2} {overall.get('avg_session_duration_minutes', '—')} min")
+            print(f"  Active session duration: {overall.get('avg_active_session_duration_minutes', '—')} min")
+            print()
+
+        if duration_notes:
+            print("  Duration notes:")
+            print(f"    - {duration_notes.get('log_session_duration', {}).get('label', 'Log session duration')}: {duration_notes.get('log_session_duration', {}).get('description', '')}")
+            print(f"    - {duration_notes.get('active_session_duration', {}).get('label', 'Active session duration')}: {duration_notes.get('active_session_duration', {}).get('description', '')}")
+            print()
+
+        tools = header_statistics.get('tools', [])
+        if tools:
+            print("  Tools ranked by usage:")
+            print(f"  {'#':>2} {'Health':<8} {'Tool':<24} {'Sess':>5} {'Avg$':>7} {'Turns':>7} {'LogMin':>7} {'ActMin':>7} {'Waste%':>7}")
+            print(f"  {'-'*2:>2} {'-'*8} {'-'*24} {'-'*5} {'-'*7} {'-'*7} {'-'*7} {'-'*7} {'-'*7}")
+            for item in tools:
+                print(
+                    f"  {item.get('rank', 0):>2} "
+                    f"{item.get('health', {}).get('emoji', '➖'):<8} "
+                    f"{item.get('label', item.get('id')):<24} "
+                    f"{item.get('sessions', 0):>5} "
+                    f"${item.get('avg_cost_per_session', 0):>6.2f} "
+                    f"{item.get('avg_turns_per_session', 0):>6.1f} "
+                    f"{item.get('avg_session_duration_minutes', '—'):>6} "
+                    f"{item.get('avg_active_session_duration_minutes', '—'):>6} "
+                    f"{item.get('avg_waste_ratio_pct', 0):>6.1f}%"
+                )
+            print()
+
+        models = header_statistics.get('models', [])
+        if models:
+            print("  Models:")
+            print(f"  {'Health':<8} {'Model':<22} {'Sess':>5} {'Avg$':>7} {'Turns':>7} {'LogMin':>7} {'ActMin':>7} {'Waste%':>7}")
+            print(f"  {'-'*8} {'-'*22} {'-'*5} {'-'*7} {'-'*7} {'-'*7} {'-'*7} {'-'*7}")
+            for item in models:
+                print(
+                    f"  {item.get('health', {}).get('emoji', '➖'):<8} "
+                    f"{item.get('label', item.get('id')):<22} "
+                    f"{item.get('sessions', 0):>5} "
+                    f"${item.get('avg_cost_per_session', 0):>6.2f} "
+                    f"{item.get('avg_turns_per_session', 0):>6.1f} "
+                    f"{item.get('avg_session_duration_minutes', '—'):>6} "
+                    f"{item.get('avg_active_session_duration_minutes', '—'):>6} "
+                    f"{item.get('avg_waste_ratio_pct', 0):>6.1f}%"
+                )
+            print()
+
+    # Model mix
+    tool_inventory = data.get('tool_inventory', [])
+    tool_mix = data.get('tool_mix', {})
+    if tool_inventory:
+        print("-" * 70)
+        print("ALL DETECTED TOOLS")
+        print("-" * 70)
+        print()
+        print(f"  {'Tool':<24} {'Status':<12} {'Sessions':>8} {'Total$':>9} {'Waste%':>8} {'Mode':>18}")
+        print(f"  {'-'*24} {'-'*12} {'-'*8} {'-'*9} {'-'*8} {'-'*18}")
+        for item in tool_inventory:
+            print(
+                f"  {item.get('name', item.get('id')):<24} "
+                f"{item.get('status', 'detected'):<12} "
+                f"{item.get('sessions', 0):>8} "
+                f"${item.get('total_cost', 0):>8.2f} "
+                f"{item.get('waste_pct', 0):>7.1f}% "
+                f"{item.get('analysis_mode', 'unknown'):>18}"
+            )
+        print()
+
+    if tool_mix:
+        print("-" * 70)
+        print("TOOL BREAKDOWN")
+        print("-" * 70)
+        print()
+        print(f"  {'Tool':<24} {'Sessions':>8} {'Total$':>9} {'Waste%':>8} {'Mode':>18}")
+        print(f"  {'-'*24} {'-'*8} {'-'*9} {'-'*8} {'-'*18}")
+        for tool_id, info in tool_mix.items():
+            print(f"  {info['name']:<24} {info['sessions']:>8} ${info['total_cost']:>8.2f} {info['waste_pct']:>7.1f}% {info.get('analysis_mode', 'unknown'):>18}")
+        print()
+
+    skipped_tools = data.get('skipped_tools', [])
+    unsupported_tools = data.get('unsupported_tools', [])
+    failed_tools = data.get('failed_tools', [])
+    if unsupported_tools or skipped_tools or failed_tools:
+        print("-" * 70)
+        print("SCAN COVERAGE")
+        print("-" * 70)
+        print()
+        if unsupported_tools:
+            print("  Unsupported detected tools:")
+            for item in unsupported_tools:
+                print(f"    - {item.get('name', item.get('id'))}: {item.get('support_level', 'limited')}")
+            print()
+        if skipped_tools:
+            print("  Skipped tools:")
+            for item in skipped_tools:
+                print(f"    - {item.get('tool_name', item.get('tool_id'))}: {item.get('reason', 'skipped')}")
+            print()
+        if failed_tools:
+            print("  Failed tools:")
+            for item in failed_tools:
+                print(f"    - {item.get('tool_name', item.get('tool_id'))} during {item.get('stage', 'unknown')}")
+            print()
+
+    optimization_targets = data.get('optimization_targets', [])
+    if optimization_targets:
+        print("-" * 70)
+        print("OPTIMIZATION TARGETS")
+        print("-" * 70)
+        print()
+        for target in optimization_targets:
+            kind = target.get('kind', 'instruction_file')
+            scope = target.get('scope', 'project')
+            priority = target.get('priority_band', 'primary')
+            action = target.get('action', 'update')
+            filename = target.get('filename') or Path(target.get('file', '')).name
+            tool_name = target.get('tool_name', target.get('tool'))
+            print(f"  - {tool_name}: {filename} [{kind}, {scope}, {priority}, {action}]")
+            print(f"    {target.get('file')}")
+        print()
+
+    optimization_plan = data.get('optimization_plan', {})
+    if optimization_plan.get('tools'):
+        print("-" * 70)
+        print("OPTIMIZATION ROADMAP")
+        print("-" * 70)
+        print()
+        for tool in optimization_plan.get('tools', []):
+            before_after = tool.get('before_after', {})
+            strategy = tool.get('optimization_strategy', {})
+            print(
+                f"  {tool.get('priority_rank', 0)}. "
+                f"{tool.get('health', {}).get('emoji', '➖')} "
+                f"{tool.get('tool_label', tool.get('tool_id'))}"
+            )
+            print(
+                f"     Avg$/session: {fmt(before_after.get('current_avg_cost_per_session', 0))} "
+                f"-> {fmt(before_after.get('projected_avg_cost_per_session', 0))} | "
+                f"Monthly savings: {fmt(before_after.get('projected_monthly_savings', 0))}"
+            )
+            if strategy:
+                print(
+                    f"     Strategy: {strategy.get('mode', 'no_targets')} | "
+                    f"Primary targets: {strategy.get('counts', {}).get('primary', 0)} | "
+                    f"Fallback targets: {strategy.get('counts', {}).get('fallback', 0)}"
+                )
+            for step in tool.get('steps', []):
+                print(
+                    f"     {step.get('rank', 0)}. "
+                    f"{step.get('health', {}).get('emoji', '➖')} "
+                    f"{step.get('title', 'Untitled step')} "
+                    f"({step.get('waste_ratio_pct', 0):.1f}% waste)"
+                )
+            print()
+
     # Model mix
     model_mix = data.get('model_mix', {})
     if model_mix:
         print("-" * 70)
         print("MODEL MIX")
         print("-" * 70)
+        print()
+
+    provider_mix = data.get('provider_mix', {})
+    if provider_mix and len(provider_mix) > 1:
+        print("-" * 70)
+        print("PROVIDER MIX")
+        print("-" * 70)
+        print()
+        print(f"  {'Provider':<16} {'Sessions':>8} {'%Sess':>7} {'Total$':>9} {'%Cost':>7}")
+        print(f"  {'-'*16} {'-'*8} {'-'*7} {'-'*9} {'-'*7}")
+        for provider, info in provider_mix.items():
+            print(f"  {provider:<16} {info['sessions']:>8} {info['pct_sessions']:>6.1f}% ${info['total_cost']:>8.2f} {info['pct_cost']:>6.1f}%")
         print()
         print(f"  {'Model':<20} {'Sessions':>8} {'%Sess':>7} {'Total$':>9} {'%Cost':>7} {'Avg$/sess':>10}")
         print(f"  {'-'*20} {'-'*8} {'-'*7} {'-'*9} {'-'*7} {'-'*10}")
@@ -81,7 +258,9 @@ def main():
         print(f"  Provider:            {pricing_metadata.get('provider', 'unknown')}")
         print(f"  Registry version:    {pricing_metadata.get('registry_version', 'unknown')}")
         print(f"  Billing mode:        {pricing_metadata.get('billing_mode', 'token_only_estimate')}")
-        if pricing_metadata.get('billing_mode') == 'full_billing':
+        if pricing_metadata.get('provider') == 'multi':
+            print("  Interpretation:      Multiple providers were merged into one machine-wide scan.")
+        elif pricing_metadata.get('billing_mode') == 'full_billing':
             print("  Interpretation:      Frontier model with provider-specific billing rules enabled.")
         else:
             print("  Interpretation:      Token/cache pricing is modeled, but tool surcharges remain estimate-only.")
@@ -290,6 +469,13 @@ def main():
     print("-" * 70)
     print()
 
+    instruction_targets = data.get('instruction_targets', [])
+    if instruction_targets:
+        print(f"  Detected instruction targets across tools:")
+        for target in instruction_targets:
+            print(f"    - {target.get('tool_name', target.get('tool'))}: {target.get('file')}")
+        print()
+
     if instruction_file_path and os.path.exists(instruction_file_path):
         with open(instruction_file_path) as f:
             content = f.read()
@@ -325,7 +511,10 @@ def main():
         print(f"  Run /vibecheck compress to proceed (approval required for each change).")
     else:
         print("  No instruction file path provided or file not found.")
-        print("  Pass the instruction file path as the second argument for compression analysis.")
+        if optimization_targets:
+            print("  Use the optimization targets above to choose the next file/settings pass.")
+        else:
+            print("  Pass the instruction file path as the second argument for compression analysis.")
     print()
 
 if __name__ == "__main__":

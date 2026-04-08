@@ -17,7 +17,9 @@ from datetime import datetime, timedelta, timezone
 #   instruction_files: list of filenames the tool uses for system prompts
 #   log_paths: {platform: [glob patterns]} for session logs
 #   log_format: 'jsonl' | 'json' | 'sqlite' | 'markdown' | 'unknown'
-#   config_paths: where config lives (for detection)
+#   config_paths: where config lives (for detection / settings optimization)
+#   global_instruction_paths: machine-wide instruction files worth preferring over
+#     per-project instruction edits when the tool supports them
 #   detect_files: files/dirs whose existence confirms this tool
 # }
 
@@ -28,6 +30,8 @@ IS_LINUX = platform.system() == 'Linux'
 
 APPDATA = os.environ.get('APPDATA', '')
 LOCAL_APPDATA = os.environ.get('LOCALAPPDATA', '')
+COPILOT_HOME = os.environ.get('COPILOT_HOME', f'{HOME}/.copilot')
+DOCUMENTS_HOME = os.path.join(HOME, 'Documents')
 
 TOOLS = {
     'claude_code': {
@@ -44,6 +48,7 @@ TOOLS = {
         'log_format': 'jsonl',
         'detect_files': [f'{HOME}/.claude'],
         'config_paths': [f'{HOME}/.claude/settings.json'],
+        'global_instruction_paths': [f'{HOME}/.claude/CLAUDE.md'],
     },
     'codex': {
         'name': 'OpenAI Codex CLI',
@@ -55,7 +60,8 @@ TOOLS = {
         },
         'log_format': 'unknown',
         'detect_files': [f'{HOME}/.codex'],
-        'config_paths': [f'{HOME}/.codex/config.json', f'{HOME}/.codex/config.yaml'],
+        'config_paths': [f'{HOME}/.codex/config.json', f'{HOME}/.codex/config.yaml', f'{HOME}/.codex/config.toml'],
+        'global_instruction_paths': [f'{HOME}/.codex/AGENTS.md'],
     },
     'cursor': {
         'name': 'Cursor',
@@ -71,7 +77,13 @@ TOOLS = {
             f'{HOME}/.config/Cursor' if IS_LINUX else '',
             f'{APPDATA}/Cursor' if IS_WIN else '',
         ],
-        'config_paths': [],
+        'config_paths': [
+            f'{HOME}/Library/Application Support/Cursor/User/settings.json' if IS_MAC else '',
+            f'{HOME}/.config/Cursor/User/settings.json' if IS_LINUX else '',
+            f'{APPDATA}/Cursor/User/settings.json' if IS_WIN else '',
+        ],
+        'global_settings_status': 'inferred',
+        'global_settings_note': 'Official docs confirm global User Rules live in Cursor Settings, but do not publish a file path. settings.json locations are inferred from Cursor’s VS Code-style app layout.',
     },
     'windsurf': {
         'name': 'Windsurf (Codeium)',
@@ -84,6 +96,9 @@ TOOLS = {
         'log_format': 'json',
         'detect_files': [f'{HOME}/.windsurf', f'{HOME}/.codeium/windsurf'],
         'config_paths': [],
+        'global_instruction_paths': [f'{HOME}/.codeium/windsurf/memories/global_rules.md'],
+        'global_settings_status': 'verified',
+        'global_settings_note': 'Official Windsurf docs publish ~/.codeium/windsurf/memories/global_rules.md as the global Rules file, with workspace rules under .windsurf/rules/*.md and AGENTS.md support inside workspaces.',
     },
     'cline': {
         'name': 'Cline',
@@ -100,6 +115,12 @@ TOOLS = {
             f'{APPDATA}/Code/User/globalStorage/saoudrizwan.claude-dev' if IS_WIN else '',
         ],
         'config_paths': [],
+        'global_instruction_paths': [
+            os.path.join(DOCUMENTS_HOME, 'Cline', 'Rules'),
+            f'{HOME}/Cline/Rules' if IS_LINUX else '',
+        ],
+        'global_settings_status': 'verified',
+        'global_settings_note': 'Official Cline docs publish the global Rules directory in Documents/Cline/Rules, with ~/Cline/Rules as a Linux fallback.',
     },
     'roo_code': {
         'name': 'Roo Code',
@@ -115,6 +136,8 @@ TOOLS = {
             f'{HOME}/Library/Application Support/Code/User/globalStorage/rooveterinaryinc.roo-cline' if IS_MAC else '',
         ],
         'config_paths': [],
+        'global_settings_status': 'unknown',
+        'global_settings_note': 'Roo Code docs were found, but an official on-disk path for global rule storage was not clearly documented.',
     },
     'aider': {
         'name': 'Aider',
@@ -129,6 +152,8 @@ TOOLS = {
         'log_format': 'markdown',
         'detect_files': [f'{HOME}/.aider.conf.yml'],
         'config_paths': [f'{HOME}/.aider.conf.yml'],
+        'global_settings_status': 'verified',
+        'global_settings_note': 'Official aider docs state .aider.conf.yml is loaded from the home directory, repo root, and current directory, in that order.',
     },
     'gemini_cli': {
         'name': 'Gemini CLI',
@@ -141,6 +166,7 @@ TOOLS = {
         'log_format': 'json',
         'detect_files': [f'{HOME}/.gemini'],
         'config_paths': [f'{HOME}/.gemini/settings.json'],
+        'global_instruction_paths': [f'{HOME}/.gemini/GEMINI.md'],
     },
     'antigravity': {
         'name': 'Google Antigravity',
@@ -153,6 +179,7 @@ TOOLS = {
         'log_format': 'markdown',
         'detect_files': [f'{HOME}/.gemini/antigravity'],
         'config_paths': [f'{HOME}/.gemini/antigravity/mcp_config.json'],
+        'global_instruction_paths': [f'{HOME}/.gemini/antigravity/AGENTS.md'],
     },
     'github_copilot': {
         'name': 'GitHub Copilot / VS Code',
@@ -200,7 +227,14 @@ TOOLS = {
             f'{APPDATA}/Code/User' if IS_WIN else '',
             f'{APPDATA}/Code - Insiders/User' if IS_WIN else '',
         ],
-        'config_paths': [],
+        'config_paths': [
+            f'{COPILOT_HOME}/config.json',
+            f'{COPILOT_HOME}/mcp-config.json',
+            f'{COPILOT_HOME}/permissions-config.json',
+        ],
+        'global_instruction_paths': [f'{COPILOT_HOME}/copilot-instructions.md'],
+        'global_settings_status': 'verified',
+        'global_settings_note': 'Official GitHub Copilot CLI docs publish $HOME/.copilot/copilot-instructions.md and the configurable COPILOT_HOME config directory.',
     },
     'opencode': {
         'name': 'OpenCode',
@@ -216,6 +250,7 @@ TOOLS = {
             f'{HOME}/.config/opencode',
         ],
         'config_paths': [f'{HOME}/.config/opencode/config.json'],
+        'global_instruction_paths': [f'{HOME}/.config/opencode/OPENCODE.md'],
     },
     'kilo_code': {
         'name': 'Kilo Code',
@@ -231,11 +266,14 @@ TOOLS = {
     },
     'augment': {
         'name': 'Augment Code',
-        'instruction_files': ['augment-guidelines.md'],
+        'instruction_files': ['augment-guidelines.md', '.augment-guidelines', '.augment/rules'],
         'log_paths': {},
         'log_format': 'unknown',
         'detect_files': [],
         'config_paths': [],
+        'global_instruction_paths': [f'{HOME}/.augment/rules'],
+        'global_settings_status': 'verified',
+        'global_settings_note': 'Official Augment docs publish ~/.augment/rules/ for user rules, <workspace>/.augment/rules/ for workspace rules, and local IDE-stored User Guidelines that do not have a documented portable file path.',
     },
     'openclaw': {
         'name': 'OpenClaw',
@@ -248,6 +286,7 @@ TOOLS = {
         'log_format': 'jsonl',
         'detect_files': [f'{HOME}/.openclaw'],
         'config_paths': [f'{HOME}/.openclaw/openclaw.json'],
+        'global_instruction_paths': [f'{HOME}/.openclaw/AGENTS.md'],
         'always_on': True,  # 24/7 agent — different waste profile
     },
     'codebuddy': {
@@ -261,6 +300,7 @@ TOOLS = {
         'log_format': 'sqlite',
         'detect_files': [f'{HOME}/.codebuddy', f'{HOME}/Library/Application Support/CodeBuddy' if IS_MAC else '', f'{HOME}/.config/CodeBuddy' if IS_LINUX else '', f'{APPDATA}/CodeBuddy' if IS_WIN else ''],
         'config_paths': [],
+        'global_instruction_paths': [f'{HOME}/.codebuddy/CODEBUDDY.md'],
     },
     'workbuddy': {
         'name': 'WorkBuddy (Tencent)',
@@ -273,6 +313,7 @@ TOOLS = {
         'log_format': 'sqlite',
         'detect_files': [f'{HOME}/.workbuddy', f'{HOME}/Library/Application Support/WorkBuddy' if IS_MAC else '', f'{HOME}/.config/WorkBuddy' if IS_LINUX else '', f'{APPDATA}/WorkBuddy' if IS_WIN else ''],
         'config_paths': [],
+        'global_instruction_paths': [f'{HOME}/.workbuddy/WORKBUDDY.md'],
     },
     'trae': {
         'name': 'TRAE (ByteDance)',
@@ -291,6 +332,8 @@ TOOLS = {
             f'{APPDATA}/Trae' if IS_WIN else '',
         ],
         'config_paths': [],
+        'global_settings_status': 'unknown',
+        'global_settings_note': 'No official global rule storage path has been verified yet.',
     },
     'qoder': {
         'name': 'Qoder (Alibaba)',
@@ -306,6 +349,8 @@ TOOLS = {
             f'{HOME}/.config/Qoder' if IS_LINUX else '',
         ],
         'config_paths': [],
+        'global_settings_status': 'unknown',
+        'global_settings_note': 'No official global rule storage path has been verified yet.',
     },
     'kimi_code': {
         'name': 'Kimi Code (Moonshot)',
@@ -318,6 +363,7 @@ TOOLS = {
         'log_format': 'jsonl',
         'detect_files': [f'{HOME}/.kimi'],
         'config_paths': [f'{HOME}/.kimi/config.json'],
+        'global_instruction_paths': [f'{HOME}/.kimi/KIMI.md'],
     },
     'marscode': {
         'name': 'MarsCode (ByteDance)',
@@ -333,6 +379,8 @@ TOOLS = {
             f'{HOME}/.config/MarsCode' if IS_LINUX else '',
         ],
         'config_paths': [],
+        'global_settings_status': 'unknown',
+        'global_settings_note': 'No official global rule storage path has been verified yet.',
     },
     'tongyi_lingma': {
         'name': 'Tongyi Lingma (Alibaba)',
@@ -348,6 +396,8 @@ TOOLS = {
             f'{HOME}/.config/Code/User/globalStorage/alibaba-cloud.tongyi-lingma' if IS_LINUX else '',
         ],
         'config_paths': [],
+        'global_settings_status': 'unknown',
+        'global_settings_note': 'No official global rule storage path has been verified yet.',
     },
     'baidu_comate': {
         'name': 'Baidu Comate',
@@ -362,6 +412,8 @@ TOOLS = {
             f'{HOME}/Library/Application Support/Code/User/globalStorage/baidu.comate' if IS_MAC else '',
         ],
         'config_paths': [],
+        'global_settings_status': 'unknown',
+        'global_settings_note': 'No official global rule storage path has been verified yet.',
     },
     'codegeex': {
         'name': 'CodeGeeX (Zhipu/Z.AI)',
@@ -376,6 +428,8 @@ TOOLS = {
             f'{HOME}/Library/Application Support/Code/User/globalStorage/aminer.codegeex' if IS_MAC else '',
         ],
         'config_paths': [],
+        'global_settings_status': 'unknown',
+        'global_settings_note': 'No official global rule storage path has been verified yet.',
     },
     'devchat': {
         'name': 'DevChat',
@@ -388,6 +442,8 @@ TOOLS = {
         'log_format': 'json',
         'detect_files': [f'{HOME}/.devchat'],
         'config_paths': [f'{HOME}/.devchat/config.yml'],
+        'global_settings_status': 'verified',
+        'global_settings_note': 'The global DevChat settings file is ~/.devchat/config.yml in the local install layout.',
     },
     'minimax': {
         'name': 'MiniMax Code',
@@ -400,6 +456,8 @@ TOOLS = {
         'log_format': 'json',
         'detect_files': [],
         'config_paths': [],
+        'global_settings_status': 'unknown',
+        'global_settings_note': 'No official global rule storage path has been verified yet.',
     },
 }
 
@@ -521,6 +579,7 @@ def detect_installed_tools():
                         break
 
         if detected:
+            support = get_support(tool_id)
             # Count log files
             log_count = 0
             log_patterns = tool.get('log_paths', {}).get(plat, [])
@@ -535,6 +594,19 @@ def detect_installed_tools():
                 'log_format': tool['log_format'],
                 'log_count': log_count,
                 'instruction_files': tool['instruction_files'],
+                'can_analyze': support['can_analyze'],
+                'analysis_mode': support['analysis_mode'],
+                'support_level': support['support_level'],
+                'support_note': support['note'],
+                'always_on': tool.get('always_on', False),
+                'global_settings_status': tool.get(
+                    'global_settings_status',
+                    'verified' if tool.get('global_instruction_paths') else 'unknown',
+                ),
+                'global_settings_note': tool.get('global_settings_note'),
+                'known_global_instruction_paths': [
+                    path for path in tool.get('global_instruction_paths', []) if path
+                ],
             })
 
     return found
@@ -559,6 +631,165 @@ def find_instruction_file(project_dir=None):
                         'filename': fname,
                     }
     return None
+
+
+def find_instruction_targets(project_dir=None):
+    """Find all instruction files for all tools in project_dir and cwd."""
+    search_dirs = []
+    if project_dir:
+        search_dirs.append(os.path.abspath(project_dir))
+    search_dirs.append(os.path.abspath(os.getcwd()))
+
+    seen = set()
+    targets = []
+
+    for d in search_dirs:
+        if not os.path.isdir(d):
+            continue
+        for tool_id, tool in TOOLS.items():
+            for fname in tool['instruction_files']:
+                fpath = os.path.join(d, fname)
+                if os.path.exists(fpath):
+                    real = os.path.realpath(fpath)
+                    if real in seen:
+                        continue
+                    seen.add(real)
+                    targets.append({
+                        'tool': tool_id,
+                        'tool_name': tool['name'],
+                        'file': fpath,
+                        'filename': fname,
+                        'search_dir': d,
+                    })
+
+    targets.sort(key=lambda item: (item['tool_name'].lower(), item['filename'].lower(), item['file']))
+    return targets
+
+
+def find_global_instruction_targets(installed_tools=None):
+    """Find machine-wide instruction targets for detected tools.
+
+    Only existing machine-wide instruction files/directories are returned. We never
+    create missing instruction surfaces for the user.
+    """
+    installed_ids = None
+    if installed_tools is not None:
+        installed_ids = {tool['id'] for tool in installed_tools}
+
+    targets = []
+    seen = set()
+    for tool_id, tool in TOOLS.items():
+        if installed_ids is not None and tool_id not in installed_ids:
+            continue
+        for idx, path in enumerate(tool.get('global_instruction_paths', [])):
+            if not path:
+                continue
+            if not os.path.exists(path):
+                continue
+            key = os.path.realpath(path)
+            if key in seen:
+                continue
+            seen.add(key)
+            targets.append({
+                'tool': tool_id,
+                'tool_name': tool['name'],
+                'file': path,
+                'filename': os.path.basename(path),
+                'kind': 'instruction_file',
+                'scope': 'global',
+                'exists': True,
+                'action': 'update',
+                'priority_band': 'primary' if idx == 0 else 'secondary',
+                'source': 'global_instruction',
+            })
+
+    targets.sort(key=lambda item: (item['tool_name'].lower(), item['priority_band'], item['filename'].lower(), item['file']))
+    return targets
+
+
+def find_config_targets(installed_tools=None):
+    """Find readable config/settings files for detected tools across the machine."""
+    installed_ids = None
+    if installed_tools is not None:
+        installed_ids = {tool['id'] for tool in installed_tools}
+
+    seen = set()
+    targets = []
+    for tool_id, tool in TOOLS.items():
+        if installed_ids is not None and tool_id not in installed_ids:
+            continue
+        for path in tool.get('config_paths', []):
+            if not path or not os.path.exists(path):
+                continue
+            real = os.path.realpath(path)
+            if real in seen:
+                continue
+            seen.add(real)
+            targets.append({
+                'tool': tool_id,
+                'tool_name': tool['name'],
+                'file': path,
+                'filename': os.path.basename(path),
+                'kind': 'config_path',
+                'scope': 'global',
+                'exists': True,
+                'action': 'update',
+                'priority_band': 'secondary',
+                'source': 'config',
+            })
+
+    targets.sort(key=lambda item: (item['tool_name'].lower(), item['filename'].lower(), item['file']))
+    return targets
+
+
+def find_optimization_targets(project_dir=None, installed_tools=None):
+    """Find both project instruction files and machine-wide tool settings worth optimizing."""
+    instruction_targets = []
+    for target in find_instruction_targets(project_dir):
+        item = dict(target)
+        item['kind'] = 'instruction_file'
+        item['scope'] = 'project'
+        item['exists'] = True
+        item['action'] = 'update'
+        item['priority_band'] = 'primary'
+        item['source'] = 'project_instruction'
+        instruction_targets.append(item)
+
+    global_instruction_targets = find_global_instruction_targets(installed_tools)
+    config_targets = find_config_targets(installed_tools)
+
+    tools_with_global_primary = {
+        target['tool']
+        for target in global_instruction_targets
+        if target.get('priority_band') == 'primary'
+    }
+    for item in instruction_targets:
+        if item.get('tool') in tools_with_global_primary:
+            item['priority_band'] = 'fallback'
+
+    seen = set()
+    targets = []
+    for target in global_instruction_targets + config_targets + instruction_targets:
+        key = os.path.realpath(target['file']) if os.path.exists(target['file']) else target['file']
+        if key in seen:
+            continue
+        seen.add(key)
+        targets.append(target)
+
+    priority_order = {'primary': 0, 'secondary': 1, 'fallback': 2}
+    scope_order = {'global': 0, 'project': 1}
+    kind_order = {'instruction_file': 0, 'config_path': 1}
+    targets.sort(
+        key=lambda item: (
+            item['tool_name'].lower(),
+            priority_order.get(item.get('priority_band'), 9),
+            scope_order.get(item.get('scope'), 9),
+            kind_order.get(item.get('kind'), 9),
+            item['filename'].lower(),
+            item['file'],
+        )
+    )
+    return targets
 
 
 def scan_project_for_tool(project_dir):
@@ -661,8 +892,12 @@ def main():
         'platform': platform.system(),
         'remote_session': remote,
         'installed_tools': installed,
+        'analyzable_tools': [tool for tool in installed if tool.get('can_analyze')],
+        'global_instruction_targets': find_global_instruction_targets(installed),
         'project_tool': project_tool,
         'cwd_tool': cwd_tool,
+        'instruction_targets': find_instruction_targets(project_dir),
+        'optimization_targets': find_optimization_targets(project_dir, installed),
         'primary_tool': None,
         'primary_log_format': None,
         'log_count': 0,
