@@ -9,6 +9,7 @@ from pathlib import Path
 
 from scan_contract import PAYLOAD_KINDS
 from scan_contract import EMPTY_RESULT_SECTION_KINDS, RESULT_SECTION_KINDS, SUMMARY_METRIC_IDS
+from workflow_state import actionable_targets, ensure_execution_state
 
 
 WASTE_LABELS = {
@@ -126,7 +127,7 @@ def build_headline(summary, top_patterns):
     )
 
 
-def build_next_action(top_patterns, instruction_file_name):
+def build_next_action(top_patterns, instruction_file_name, optimization_plan=None):
     if top_patterns:
         top = top_patterns[0]
         if instruction_file_name:
@@ -152,11 +153,22 @@ def build_next_action(top_patterns, instruction_file_name):
             title = "Run the polish pass"
             body = "Use the instruction-file optimization and compression flow to squeeze out the remaining waste."
 
-    return {
+    result = {
         "title": title,
         "body": body,
         "instruction_file": instruction_file_name,
     }
+    entry_tool_id = (optimization_plan or {}).get("entry_tool_id")
+    tools = {tool.get("tool_id"): tool for tool in (optimization_plan or {}).get("tools", [])}
+    entry_tool = tools.get(entry_tool_id)
+    first_step = entry_tool.get("steps", [None])[0] if entry_tool else None
+    if entry_tool_id and first_step:
+        result["command"] = f"python3 SKILL_DIR/scripts/present_next_workflow_item.py /tmp/vibecheck_result.json {entry_tool_id}"
+        result["workflow"] = {
+            "tool_id": entry_tool_id,
+            "step_rank": first_step.get("rank"),
+        }
+    return result
 
 
 def build_empty_state(instruction_file_name):
@@ -303,7 +315,7 @@ def build_detected_tool_inventory(data):
     return inventory
 
 
-def build_optimization_targets(data):
+def build_optimization_targets(data, instruction_file_path=None, detected_tools=None):
     targets = data.get("optimization_targets", data.get("instruction_targets", []))
     output = []
     for target in targets:
@@ -319,6 +331,38 @@ def build_optimization_targets(data):
                 "action": target.get("action", "update"),
                 "priority_band": target.get("priority_band", "primary"),
                 "source": target.get("source", "project_instruction"),
+            }
+        )
+    if output or not instruction_file_path:
+        return output
+
+    tool_mix = data.get("tool_mix", {})
+    candidate_tool_id = None
+    candidate_label = None
+    if len(tool_mix) == 1:
+        candidate_tool_id, info = next(iter(tool_mix.items()))
+        candidate_label = info.get("name", candidate_tool_id)
+    elif data.get("scan_tool_id"):
+        candidate_tool_id = data.get("scan_tool_id")
+        candidate_label = data.get("scan_tool_name", candidate_tool_id)
+    elif detected_tools and len(detected_tools) == 1:
+        candidate_tool_id = detected_tools[0].get("id")
+        candidate_label = detected_tools[0].get("name", candidate_tool_id)
+
+    if candidate_tool_id:
+        path = str(instruction_file_path)
+        output.append(
+            {
+                "tool": candidate_tool_id,
+                "label": candidate_label or candidate_tool_id,
+                "path": path,
+                "filename": Path(path).name,
+                "kind": "instruction_file",
+                "scope": "project",
+                "exists": Path(path).exists(),
+                "action": "update",
+                "priority_band": "fallback",
+                "source": "present_scan_fallback",
             }
         )
     return output
@@ -590,8 +634,10 @@ def build_tool_optimization_steps(tool_label, tool_id, tool_sessions, avg_cost_p
     total_sessions = len(tool_sessions)
     pattern_totals, descriptions = aggregate_pattern_totals(tool_sessions)
     top_areas = build_top_area_list(pattern_totals, descriptions, total_sessions, avg_cost_per_session, limit=3)
-    primary_targets = target_strategy.get("primary_targets", [])
+    effective_targets = target_strategy.get("effective_targets", [])
     fallback_targets = target_strategy.get("fallback_targets", [])
+    if not effective_targets:
+        return []
     steps = []
     for idx, area in enumerate(top_areas, start=1):
         monthly = monthly_savings_from_total(area["cost_per_session"] * total_sessions, period_days)
@@ -622,7 +668,7 @@ def build_tool_optimization_steps(tool_label, tool_id, tool_sessions, avg_cost_p
                     "why_it_matters": f"On {tool_label}, this area accounts for about {area['waste_ratio_pct']:.1f}% of the average session spend and should be handled before lower-impact cleanup.",
                 },
                 "approval_required": True,
-                "target_files": primary_targets,
+                "target_files": effective_targets,
                 "target_strategy": {
                     "mode": target_strategy.get("mode"),
                     "summary": target_strategy.get("summary"),
@@ -631,7 +677,7 @@ def build_tool_optimization_steps(tool_label, tool_id, tool_sessions, avg_cost_p
             }
         )
 
-    if len(steps) < 4 and (primary_targets or tool_targets):
+    if len(steps) < 4 and effective_targets:
         steps.append(
             {
                 "id": f"{tool_id}-step-{len(steps) + 1}",
@@ -651,7 +697,7 @@ def build_tool_optimization_steps(tool_label, tool_id, tool_sessions, avg_cost_p
                     "why_it_matters": f"It keeps the optimization durable for {tool_label} instead of relying on one-off habits.",
                 },
                 "approval_required": True,
-                "target_files": primary_targets or tool_targets,
+                "target_files": effective_targets,
                 "target_strategy": {
                     "mode": target_strategy.get("mode"),
                     "summary": target_strategy.get("summary"),
@@ -667,12 +713,19 @@ def build_target_strategy(tool_targets):
     primary_targets = [target for target in tool_targets if target.get("priority_band") == "primary"]
     secondary_targets = [target for target in tool_targets if target.get("priority_band") == "secondary"]
     fallback_targets = [target for target in tool_targets if target.get("priority_band") == "fallback"]
+    effective_primary_targets = actionable_targets(primary_targets)
+    effective_secondary_targets = actionable_targets(secondary_targets)
+    effective_fallback_targets = actionable_targets(fallback_targets)
+    effective_targets = effective_primary_targets or effective_secondary_targets or effective_fallback_targets
 
     global_primary = [
-        target for target in primary_targets
+        target for target in effective_primary_targets
         if target.get("scope") == "global" and target.get("kind") == "instruction_file"
     ]
-    global_secondary = [target for target in secondary_targets if target.get("scope") == "global"]
+    global_secondary = [
+        target for target in effective_secondary_targets
+        if target.get("scope") == "global" and target.get("kind") == "instruction_file"
+    ]
 
     if global_primary:
         mode = "global_first"
@@ -680,7 +733,7 @@ def build_target_strategy(tool_targets):
     elif global_secondary:
         mode = "global_settings_first"
         summary = "Start with machine-wide settings, then use project files only for tool-specific gaps."
-    elif primary_targets:
+    elif effective_targets:
         mode = "project_only"
         summary = "This tool does not expose a reliable machine-wide instruction surface, so optimization stays project-local."
     else:
@@ -694,10 +747,12 @@ def build_target_strategy(tool_targets):
         "primary_targets": primary_targets,
         "secondary_targets": secondary_targets,
         "fallback_targets": fallback_targets,
+        "effective_targets": effective_targets,
         "counts": {
             "primary": len(primary_targets),
             "secondary": len(secondary_targets),
             "fallback": len(fallback_targets),
+            "effective": len(effective_targets),
         },
     }
 
@@ -713,9 +768,6 @@ def build_optimization_plan(header_statistics, optimization_target_list, session
         tool_id = tool["id"]
         tool_sessions = [session for session in sessions if session.get("source_tool") == tool_id or (not session.get("source_tool") and len(header_statistics.get("tools", [])) == 1)]
         current_avg = tool.get("avg_cost_per_session", 0)
-        waste_ratio_pct = tool.get("avg_waste_ratio_pct", 0)
-        projected_avg = round(max(current_avg * (1 - waste_ratio_pct / 100), 0), 2) if tool_sessions else current_avg
-        monthly = round(current_avg * len(tool_sessions) / period_days * 30 * (waste_ratio_pct / 100), 2) if tool_sessions else 0
         tool_targets = target_map.get(tool_id, [])
         target_strategy = build_target_strategy(tool_targets)
         steps = build_tool_optimization_steps(
@@ -727,6 +779,9 @@ def build_optimization_plan(header_statistics, optimization_target_list, session
             period_days,
             target_strategy,
         )
+        planned_savings_per_session = round(sum(step.get("projected_savings_per_session", 0) for step in steps), 3)
+        planned_monthly = round(sum(step.get("projected_monthly_savings", 0) for step in steps), 2)
+        planned_waste_ratio = round(sum(step.get("waste_ratio_pct", 0) for step in steps), 1)
         tools.append(
             {
                 "tool_id": tool_id,
@@ -737,9 +792,9 @@ def build_optimization_plan(header_statistics, optimization_target_list, session
                 "health": tool.get("health"),
                 "before_after": {
                     "current_avg_cost_per_session": current_avg,
-                    "projected_avg_cost_per_session": projected_avg,
-                    "projected_monthly_savings": monthly,
-                    "waste_ratio_pct": tool.get("avg_waste_ratio_pct", 0),
+                    "projected_avg_cost_per_session": round(max(current_avg - planned_savings_per_session, 0), 2) if tool_sessions else current_avg,
+                    "projected_monthly_savings": planned_monthly if tool_sessions else 0,
+                    "waste_ratio_pct": planned_waste_ratio,
                 },
                 "key_statistics": {
                     "avg_turns_per_session": tool.get("avg_turns_per_session"),
@@ -751,18 +806,21 @@ def build_optimization_plan(header_statistics, optimization_target_list, session
                 },
                 "optimization_strategy": target_strategy,
                 "steps": steps,
+                "can_auto_optimize": bool(target_strategy.get("effective_targets")),
                 "next_tool_id": None,
             }
         )
 
-    for idx, tool in enumerate(tools[:-1]):
-        tool["next_tool_id"] = tools[idx + 1]["tool_id"]
+    actionable_tools = [tool for tool in tools if tool.get("can_auto_optimize") and tool.get("steps")]
+    for idx, tool in enumerate(actionable_tools[:-1]):
+        tool["next_tool_id"] = actionable_tools[idx + 1]["tool_id"]
 
     return {
         "thresholds": {
             "good_max_waste_pct": GOOD_WASTE_THRESHOLD_PCT,
         },
-        "tool_sequence": [tool["tool_id"] for tool in tools],
+        "tool_sequence": [tool["tool_id"] for tool in actionable_tools],
+        "entry_tool_id": actionable_tools[0]["tool_id"] if actionable_tools else None,
         "tools": tools,
     }
 
@@ -783,7 +841,7 @@ def build_payload(data, instruction_file_path=None):
     skipped_tools = data.get("skipped_tools", [])
     failed_tools = data.get("failed_tools", [])
     detected_tools = build_detected_tool_inventory(data)
-    optimization_target_list = build_optimization_targets(data)
+    optimization_target_list = build_optimization_targets(data, instruction_file_path, detected_tools)
     preferred_instruction_target = next(
         (
             target for target in optimization_target_list
@@ -973,7 +1031,7 @@ def build_payload(data, instruction_file_path=None):
             },
         ],
         "top_waste_patterns": top_patterns,
-        "next_action": build_next_action(top_patterns, instruction_file_name),
+        "next_action": build_next_action(top_patterns, instruction_file_name, optimization_plan),
         "unified_scan": {
             "mode": data.get("scan_scope", {}).get("mode", "single_tool"),
             "tools_scanned": len([item for item in detected_tools if item.get("status") == "scanned"]) or data.get("summary", {}).get("tools_scanned", 0),
@@ -1042,7 +1100,7 @@ def build_payload(data, instruction_file_path=None):
         ],
         "education_bridge": "Lead with this summary first. Teach methodology only after the user has seen the findings.",
     }
-    return payload
+    return ensure_execution_state(payload)
 
 
 def main():

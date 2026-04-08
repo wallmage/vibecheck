@@ -195,6 +195,22 @@ class RegressionTests(unittest.TestCase):
         self.assertEqual(payload["next_action"]["instruction_file"], "CLAUDE.md")
         self.assertIn("Lead with this summary first", payload["education_bridge"])
 
+    def test_present_scan_exposes_workflow_start_handoff(self):
+        analysis = run_json("analyze_claude_sessions.py", ROOT / "tests/fixtures/claude/sessions.json")
+        with tempfile.TemporaryDirectory() as tmpdir:
+            fixture_path = Path(tmpdir) / "analysis.json"
+            instruction_path = Path(tmpdir) / "CLAUDE.md"
+            instruction_path.write_text("# Claude\n")
+            fixture_path.write_text(json.dumps(analysis))
+            payload = run_json("present_scan.py", fixture_path, instruction_path)
+        self.assertIsNotNone(payload["optimization_plan"]["entry_tool_id"])
+        self.assertEqual(
+            payload["next_action"]["workflow"]["tool_id"],
+            payload["optimization_plan"]["entry_tool_id"],
+        )
+        self.assertEqual(payload["next_action"]["workflow"]["step_rank"], 1)
+        self.assertIn("present_next_workflow_item.py", payload["next_action"]["command"])
+
     def test_present_scan_emits_calm_empty_state_for_zero_sessions(self):
         analysis = {
             "summary": {
@@ -939,8 +955,8 @@ class RegressionTests(unittest.TestCase):
                     "filename": "AGENTS.md",
                     "kind": "instruction_file",
                     "scope": "global",
-                    "exists": False,
-                    "action": "create_or_update",
+                    "exists": True,
+                    "action": "update",
                     "priority_band": "primary",
                     "source": "global_instruction",
                 },
@@ -970,10 +986,92 @@ class RegressionTests(unittest.TestCase):
         self.assertEqual(strategy["preferred_scope"], "global")
         self.assertEqual(strategy["counts"]["primary"], 1)
         self.assertEqual(strategy["counts"]["fallback"], 1)
+        self.assertEqual(strategy["counts"]["effective"], 1)
         self.assertEqual(strategy["primary_targets"][0]["path"], "/Users/test/.codex/AGENTS.md")
         self.assertEqual(
             payload["optimization_plan"]["tools"][0]["steps"][0]["target_files"][0]["path"],
             "/Users/test/.codex/AGENTS.md",
+        )
+
+    def test_present_scan_uses_existing_project_targets_when_global_surface_is_missing(self):
+        merged = {
+            "summary": {
+                "sessions": 1,
+                "total_sessions": 1,
+                "total_cost": 1.20,
+                "avg_cost_per_session": 1.20,
+                "avg_turns_per_session": 16.0,
+                "waste_percentage": 30.0,
+            },
+            "waste_breakdown": {
+                "verbose_output": {
+                    "per_session": 0.20,
+                    "total_cost": 0.20,
+                    "percentage_of_waste": 55.6,
+                    "description": "Large command output keeps bloating context long after the command finishes.",
+                }
+            },
+            "tool_mix": {
+                "codex": {"name": "OpenAI Codex CLI", "sessions": 1, "total_cost": 1.20, "waste_pct": 30.0, "analysis_mode": "codex_jsonl"},
+            },
+            "sessions": [
+                {
+                    "source_tool": "codex",
+                    "source_tool_name": "OpenAI Codex CLI",
+                    "model": "gpt-5.4",
+                    "total_turns": 16,
+                    "total_cost": 1.20,
+                    "duration_minutes": 18.0,
+                    "waste": {
+                        "verbose_output": {"cost": 0.20, "description": "Large command output keeps bloating context long after the command finishes."},
+                    },
+                }
+            ],
+            "installed_tools": [
+                {"id": "codex", "name": "OpenAI Codex CLI", "support_level": "full", "can_analyze": True, "analysis_mode": "codex_jsonl", "log_count": 9},
+            ],
+            "optimization_targets": [
+                {
+                    "tool": "codex",
+                    "tool_name": "OpenAI Codex CLI",
+                    "file": "/Users/test/.codex/AGENTS.md",
+                    "filename": "AGENTS.md",
+                    "kind": "instruction_file",
+                    "scope": "global",
+                    "exists": False,
+                    "action": "update",
+                    "priority_band": "primary",
+                    "source": "global_instruction",
+                },
+                {
+                    "tool": "codex",
+                    "tool_name": "OpenAI Codex CLI",
+                    "file": "/tmp/project/AGENTS.md",
+                    "filename": "AGENTS.md",
+                    "kind": "instruction_file",
+                    "scope": "project",
+                    "exists": True,
+                    "action": "update",
+                    "priority_band": "fallback",
+                    "source": "project_instruction",
+                },
+            ],
+        }
+        fixture_path = ROOT / "tests/fixtures/tmp-project-fallback-analysis.json"
+        fixture_path.write_text(json.dumps(merged))
+        try:
+            payload = run_json("present_scan.py", fixture_path)
+        finally:
+            fixture_path.unlink(missing_ok=True)
+
+        strategy = payload["optimization_plan"]["tools"][0]["optimization_strategy"]
+        self.assertEqual(strategy["mode"], "project_only")
+        self.assertEqual(strategy["counts"]["effective"], 1)
+        self.assertEqual(strategy["effective_targets"][0]["path"], "/tmp/project/AGENTS.md")
+        self.assertEqual(payload["optimization_plan"]["tool_sequence"], ["codex"])
+        self.assertEqual(
+            payload["optimization_plan"]["tools"][0]["steps"][0]["target_files"][0]["path"],
+            "/tmp/project/AGENTS.md",
         )
 
     def test_report_prints_ranked_scan_summary_with_emoji_markers(self):
@@ -1093,6 +1191,7 @@ class RegressionTests(unittest.TestCase):
         self.assertEqual(payload["kind"], "scan_approval")
         self.assertIn("Claude Code", payload["card"]["title"])
         self.assertIn("CLAUDE.md", payload["card"]["body"])
+        self.assertTrue(payload["proposed_change"]["additions"][0].startswith("+ "))
         self.assertEqual(payload["workflow"]["tool_id"], "claude_code")
         self.assertEqual(payload["workflow"]["step"]["rank"], 1)
         self.assertEqual(payload["workflow"]["next_tool_id"], "codex")
@@ -1146,6 +1245,75 @@ class RegressionTests(unittest.TestCase):
         self.assertEqual(payload["bulk_apply_prompt"]["next_tool_id"], "codex")
         self.assertIn("other tools and projects", payload["bulk_apply_prompt"]["message"])
         self.assertIn("present_bulk_apply_prompt.py", payload["bulk_apply_prompt"]["command"])
+        self.assertIn("present_final_success.py", payload["finish_prompt"]["command"])
+
+    def test_present_tool_success_does_not_offer_manual_next_tool_path(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            base = Path(tmpdir)
+            claude_path = base / "CLAUDE.md"
+            codex_path = base / "AGENTS.md"
+            claude_path.write_text("# Claude\n")
+            codex_path.write_text("# Codex\n")
+            scan_payload = {
+                "optimization_plan": {
+                    "tool_sequence": ["claude_code", "codex"],
+                    "tools": [
+                        {
+                            "tool_id": "claude_code",
+                            "tool_label": "Claude Code",
+                            "priority_rank": 1,
+                            "before_after": {
+                                "current_avg_cost_per_session": 1.51,
+                                "projected_avg_cost_per_session": 0.95,
+                                "projected_monthly_savings": 400.0,
+                                "waste_ratio_pct": 37.0,
+                            },
+                            "optimization_strategy": {
+                                "effective_targets": [
+                                    {"kind": "instruction_file", "path": str(claude_path), "exists": True}
+                                ]
+                            },
+                            "steps": [
+                                {
+                                    "rank": 1,
+                                    "title": "Output and context drag",
+                                    "projected_savings_per_session": 0.32,
+                                    "projected_monthly_savings": 260.0,
+                                    "target_files": [{"kind": "instruction_file", "file": str(claude_path), "exists": True}],
+                                    "execution": {"status": "applied"},
+                                }
+                            ],
+                            "execution_state": {"status": "completed"},
+                        },
+                        {
+                            "tool_id": "codex",
+                            "tool_label": "OpenAI Codex CLI",
+                            "priority_rank": 2,
+                            "optimization_strategy": {
+                                "effective_targets": [
+                                    {"kind": "instruction_file", "path": str(codex_path), "exists": True}
+                                ]
+                            },
+                            "steps": [
+                                {
+                                    "rank": 1,
+                                    "title": "Narration",
+                                    "projected_savings_per_session": 0.08,
+                                    "projected_monthly_savings": 40.0,
+                                    "target_files": [{"kind": "instruction_file", "file": str(codex_path), "exists": True}],
+                                    "execution": {"status": "pending"},
+                                }
+                            ],
+                        },
+                    ]
+                }
+            }
+            fixture_path = base / "payload.json"
+            fixture_path.write_text(json.dumps(scan_payload))
+            payload = run_json("present_tool_success.py", fixture_path, "claude_code")
+
+        self.assertEqual(payload["bulk_apply_prompt"]["next_tool_id"], "codex")
+        self.assertNotIn("continue_prompt", payload)
 
     def test_present_bulk_apply_prompt_summarizes_remaining_plan(self):
         scan_payload = {
@@ -1191,6 +1359,39 @@ class RegressionTests(unittest.TestCase):
         self.assertEqual(payload["workflow"]["remaining_tools"], 2)
         self.assertEqual(payload["workflow"]["projected_monthly_savings"], 150.0)
         self.assertIn("vibecheck_optimize_bulk.py", payload["card"]["command"])
+
+    def test_present_bulk_apply_prompt_counts_unique_target_files(self):
+        scan_payload = {
+            "optimization_plan": {
+                "tool_sequence": ["claude_code", "codex"],
+                "tools": [
+                    {
+                        "tool_id": "claude_code",
+                        "tool_label": "Claude Code",
+                        "before_after": {"projected_monthly_savings": 400.0},
+                        "steps": [],
+                    },
+                    {
+                        "tool_id": "codex",
+                        "tool_label": "OpenAI Codex CLI",
+                        "before_after": {"projected_monthly_savings": 120.0},
+                        "steps": [
+                            {"target_files": [{"path": "/tmp/AGENTS.md"}]},
+                            {"target_files": [{"path": "/tmp/AGENTS.md"}]},
+                            {"target_files": [{"path": "/tmp/AGENTS.md"}]},
+                        ],
+                    },
+                ],
+            }
+        }
+        fixture_path = ROOT / "tests/fixtures/tmp-bulk-unique-targets.json"
+        fixture_path.write_text(json.dumps(scan_payload))
+        try:
+            payload = run_json("present_bulk_apply_prompt.py", fixture_path, "claude_code")
+        finally:
+            fixture_path.unlink(missing_ok=True)
+        self.assertEqual(payload["workflow"]["remaining_target_files"], 1)
+        self.assertIn("1 target edit", payload["card"]["body"])
 
     def test_present_tool_success_includes_status_report_and_top_savings(self):
         scan_payload = {
@@ -1245,6 +1446,50 @@ class RegressionTests(unittest.TestCase):
         self.assertEqual(payload["sections"][1]["kind"], "comparison")
         self.assertEqual(payload["tool_success"]["completed_steps"][0]["rank"], 1)
 
+    def test_present_tool_success_omits_savings_when_all_steps_were_skipped(self):
+        scan_payload = {
+            "optimization_plan": {
+                "tool_sequence": ["claude_code"],
+                "tools": [
+                    {
+                        "tool_id": "claude_code",
+                        "tool_label": "Claude Code",
+                        "priority_rank": 1,
+                        "before_after": {
+                            "current_avg_cost_per_session": 1.51,
+                            "projected_avg_cost_per_session": 0.95,
+                            "projected_monthly_savings": 400.0,
+                            "waste_ratio_pct": 37.0,
+                        },
+                        "steps": [
+                            {
+                                "rank": 1,
+                                "title": "Narration",
+                                "projected_savings_per_session": 0.20,
+                                "projected_monthly_savings": 150.0,
+                                "execution": {"status": "skipped"},
+                            }
+                        ],
+                        "execution_state": {"status": "completed"},
+                    }
+                ],
+            }
+        }
+        fixture_path = ROOT / "tests/fixtures/tmp-tool-success-skipped.json"
+        fixture_path.write_text(json.dumps(scan_payload))
+        try:
+            payload = run_json("present_tool_success.py", fixture_path, "claude_code")
+        finally:
+            fixture_path.unlink(missing_ok=True)
+        self.assertEqual(payload["tool_success"]["summary"]["projected_monthly_savings"], 0)
+        self.assertEqual(payload["tool_success"]["summary"]["waste_ratio_before_pct"], 37.0)
+        self.assertEqual(payload["tool_success"]["top_savings"], [])
+        self.assertEqual(payload["status_report"]["completed_steps"], [])
+        self.assertEqual(payload["status_report"]["skipped_steps"][0]["rank"], 1)
+        self.assertEqual(payload["hero"]["eyebrow"], "Tool #1 reviewed")
+        self.assertIn("No changes were applied", payload["hero"]["headline"])
+        self.assertIn("All proposed steps were skipped", payload["message"])
+
     def test_vibecheck_optimize_bulk_applies_remaining_tools(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             base = Path(tmpdir)
@@ -1296,6 +1541,214 @@ class RegressionTests(unittest.TestCase):
         self.assertIn("Redirect noisy build/test/install output", codex_content)
         self.assertNotIn("Vibecheck Cost Rules", claude_content)
 
+    def test_vibecheck_optimize_accumulates_rules_across_steps_and_updates_state(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            base = Path(tmpdir)
+            instruction_path = base / "AGENTS.md"
+            instruction_path.write_text("# Existing rules\n")
+            payload_path = base / "payload.json"
+            payload_path.write_text(
+                json.dumps(
+                    {
+                        "optimization_plan": {
+                            "tools": [
+                                {
+                                    "tool_id": "codex",
+                                    "tool_label": "OpenAI Codex CLI",
+                                    "optimization_strategy": {
+                                        "effective_targets": [
+                                            {"kind": "instruction_file", "path": str(instruction_path), "exists": True}
+                                        ]
+                                    },
+                                    "steps": [
+                                        {
+                                            "rank": 1,
+                                            "title": "Narration",
+                                            "patterns": [{"key": "idle_narration"}],
+                                            "target_files": [{"kind": "instruction_file", "file": str(instruction_path), "exists": True}],
+                                        },
+                                        {
+                                            "rank": 2,
+                                            "title": "Verbose output",
+                                            "patterns": [{"key": "verbose_output"}],
+                                            "target_files": [{"kind": "instruction_file", "file": str(instruction_path), "exists": True}],
+                                        },
+                                    ],
+                                }
+                            ]
+                        }
+                    }
+                )
+            )
+
+            first = run_json("vibecheck_optimize.py", payload_path, "codex", 1)
+            second = run_json("vibecheck_optimize.py", payload_path, "codex", 2)
+            content = instruction_path.read_text()
+            payload = json.loads(payload_path.read_text())
+
+        self.assertTrue(first["ok"])
+        self.assertFalse(first["tool_complete"])
+        self.assertEqual(first["next_pending_step_rank"], 2)
+        self.assertTrue(second["ok"])
+        self.assertTrue(second["tool_complete"])
+        self.assertIsNone(second["next_pending_step_rank"])
+        self.assertIn("Do not spend a turn narrating", content)
+        self.assertIn("Redirect noisy build/test/install output", content)
+        self.assertEqual(content.count("<!-- vibecheck:cost-rules:start -->"), 1)
+        tool = payload["optimization_plan"]["tools"][0]
+        self.assertEqual(tool["execution_state"]["applied_step_ranks"], [1, 2])
+
+    def test_present_next_workflow_item_advances_from_step_to_tool_success_for_single_tool(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            base = Path(tmpdir)
+            instruction_path = base / "CLAUDE.md"
+            instruction_path.write_text("# Claude\n")
+            payload_path = base / "payload.json"
+            payload_path.write_text(
+                json.dumps(
+                    {
+                        "optimization_plan": {
+                            "tool_sequence": ["claude_code"],
+                            "tools": [
+                                {
+                                    "tool_id": "claude_code",
+                                    "tool_label": "Claude Code",
+                                    "priority_rank": 1,
+                                    "before_after": {
+                                        "current_avg_cost_per_session": 1.51,
+                                        "projected_avg_cost_per_session": 0.95,
+                                        "projected_monthly_savings": 400.0,
+                                        "waste_ratio_pct": 37.0,
+                                    },
+                                    "optimization_strategy": {
+                                        "effective_targets": [
+                                            {"kind": "instruction_file", "path": str(instruction_path), "exists": True}
+                                        ]
+                                    },
+                                    "steps": [
+                                        {
+                                            "rank": 1,
+                                            "title": "Output and context drag",
+                                            "patterns": [{"key": "verbose_output"}],
+                                            "projected_savings_per_session": 0.32,
+                                            "projected_monthly_savings": 260.0,
+                                            "waste_ratio_pct": 21.0,
+                                            "health": {"emoji": "❌", "label": "Waste"},
+                                            "target_files": [{"kind": "instruction_file", "file": str(instruction_path), "exists": True}],
+                                        }
+                                    ],
+                                }
+                            ],
+                        }
+                    }
+                )
+            )
+
+            first_item = run_json("present_next_workflow_item.py", payload_path, "claude_code")
+            run_json("vibecheck_optimize.py", payload_path, "claude_code", 1)
+            second_item = run_json("present_next_workflow_item.py", payload_path, "claude_code")
+
+        self.assertEqual(first_item["visibility"], "approval")
+        self.assertEqual(first_item["workflow"]["step"]["rank"], 1)
+        self.assertEqual(second_item["kind"], "tool_success")
+        self.assertEqual(second_item["tool_success"]["tool_id"], "claude_code")
+        self.assertIn("present_final_success.py", second_item["finish_prompt"]["command"])
+        self.assertNotIn("bulk_apply_prompt", second_item)
+
+    def test_present_final_success_uses_review_language_when_nothing_was_applied(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            base = Path(tmpdir)
+            payload_path = base / "payload.json"
+            payload_path.write_text(
+                json.dumps(
+                    {
+                        "optimization_plan": {
+                            "tool_sequence": ["claude_code"],
+                            "tools": [
+                                {
+                                    "tool_id": "claude_code",
+                                    "tool_label": "Claude Code",
+                                    "priority_rank": 1,
+                                    "before_after": {
+                                        "current_avg_cost_per_session": 1.20,
+                                        "projected_avg_cost_per_session": 0.84,
+                                        "projected_monthly_savings": 210.0,
+                                        "waste_ratio_pct": 30.0,
+                                    },
+                                    "steps": [
+                                        {
+                                            "rank": 1,
+                                            "title": "Verbose output",
+                                            "projected_savings_per_session": 0.20,
+                                            "projected_monthly_savings": 120.0,
+                                            "execution": {"status": "skipped"},
+                                        },
+                                    ],
+                                }
+                            ],
+                        }
+                    }
+                )
+            )
+
+            next_item = run_json("present_final_success.py", payload_path)
+
+        self.assertEqual(next_item["kind"], "optimization_final_success")
+        self.assertEqual(next_item["summary"]["tools_optimized"], 0)
+        self.assertEqual(next_item["hero"]["eyebrow"], "Review complete")
+        self.assertIn("No changes were applied", next_item["hero"]["headline"])
+
+    def test_vibecheck_skip_step_marks_state_and_advances_to_next_step(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            base = Path(tmpdir)
+            instruction_path = base / "CLAUDE.md"
+            instruction_path.write_text("# Claude\n")
+            payload_path = base / "payload.json"
+            payload_path.write_text(
+                json.dumps(
+                    {
+                        "optimization_plan": {
+                            "tool_sequence": ["claude_code"],
+                            "tools": [
+                                {
+                                    "tool_id": "claude_code",
+                                    "tool_label": "Claude Code",
+                                    "priority_rank": 1,
+                                    "optimization_strategy": {
+                                        "effective_targets": [
+                                            {"kind": "instruction_file", "path": str(instruction_path), "exists": True}
+                                        ]
+                                    },
+                                    "steps": [
+                                        {
+                                            "rank": 1,
+                                            "title": "Narration",
+                                            "patterns": [{"key": "idle_narration"}],
+                                            "target_files": [{"kind": "instruction_file", "file": str(instruction_path), "exists": True}],
+                                        },
+                                        {
+                                            "rank": 2,
+                                            "title": "Verbose output",
+                                            "patterns": [{"key": "verbose_output"}],
+                                            "target_files": [{"kind": "instruction_file", "file": str(instruction_path), "exists": True}],
+                                        },
+                                    ],
+                                }
+                            ],
+                        }
+                    }
+                )
+            )
+
+            result = run_json("vibecheck_skip_step.py", payload_path, "claude_code", 1)
+            next_item = run_json("present_next_workflow_item.py", payload_path, "claude_code")
+            payload = json.loads(payload_path.read_text())
+
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["next_pending_step_rank"], 2)
+        self.assertEqual(next_item["workflow"]["step"]["rank"], 2)
+        self.assertEqual(payload["optimization_plan"]["tools"][0]["execution_state"]["skipped_step_ranks"], [1])
+
     def test_present_final_success_summarizes_all_tools_before_education(self):
         scan_payload = {
             "optimization_plan": {
@@ -1332,6 +1785,162 @@ class RegressionTests(unittest.TestCase):
         self.assertEqual(payload["summary"]["tools_optimized"], 2)
         self.assertEqual(payload["summary"]["projected_monthly_savings"], 440.0)
         self.assertIn("Human-side tips come next", payload["education_next"]["title"])
+        self.assertIn("present_education.py", payload["education_next"]["command"])
+
+    def test_present_final_success_uses_applied_state_when_workflow_has_run(self):
+        scan_payload = {
+            "optimization_plan": {
+                "tools": [
+                    {
+                        "tool_id": "claude_code",
+                        "tool_label": "Claude Code",
+                        "before_after": {
+                            "current_avg_cost_per_session": 1.51,
+                            "projected_avg_cost_per_session": 0.95,
+                            "projected_monthly_savings": 400.0,
+                        },
+                        "steps": [
+                            {
+                                "rank": 1,
+                                "title": "Narration",
+                                "projected_savings_per_session": 0.20,
+                                "projected_monthly_savings": 150.0,
+                                "execution": {"status": "applied"},
+                            }
+                        ],
+                        "execution_state": {"status": "completed"},
+                    },
+                    {
+                        "tool_id": "codex",
+                        "tool_label": "OpenAI Codex CLI",
+                        "before_after": {
+                            "current_avg_cost_per_session": 0.49,
+                            "projected_avg_cost_per_session": 0.42,
+                            "projected_monthly_savings": 40.0,
+                        },
+                        "steps": [
+                            {
+                                "rank": 1,
+                                "title": "Verbose output",
+                                "projected_savings_per_session": 0.07,
+                                "projected_monthly_savings": 40.0,
+                                "execution": {"status": "pending"},
+                            }
+                        ],
+                        "execution_state": {"status": "in_progress"},
+                    },
+                ]
+            }
+        }
+        fixture_path = ROOT / "tests/fixtures/tmp-final-success-applied.json"
+        fixture_path.write_text(json.dumps(scan_payload))
+        try:
+            payload = run_json("present_final_success.py", fixture_path)
+        finally:
+            fixture_path.unlink(missing_ok=True)
+
+        self.assertEqual(payload["summary"]["tools_optimized"], 1)
+        self.assertEqual(payload["summary"]["projected_monthly_savings"], 150.0)
+
+    def test_present_final_success_does_not_count_skipped_only_tools_as_optimized(self):
+        scan_payload = {
+            "optimization_plan": {
+                "tools": [
+                    {
+                        "tool_id": "claude_code",
+                        "tool_label": "Claude Code",
+                        "before_after": {
+                            "current_avg_cost_per_session": 1.51,
+                            "projected_avg_cost_per_session": 0.95,
+                            "projected_monthly_savings": 400.0,
+                        },
+                        "steps": [
+                            {
+                                "rank": 1,
+                                "title": "Narration",
+                                "projected_savings_per_session": 0.20,
+                                "projected_monthly_savings": 150.0,
+                                "execution": {"status": "skipped"},
+                            }
+                        ],
+                        "execution_state": {"status": "completed"},
+                    }
+                ]
+            }
+        }
+        fixture_path = ROOT / "tests/fixtures/tmp-final-success-skipped-only.json"
+        fixture_path.write_text(json.dumps(scan_payload))
+        try:
+            payload = run_json("present_final_success.py", fixture_path)
+        finally:
+            fixture_path.unlink(missing_ok=True)
+
+        self.assertEqual(payload["summary"]["tools_optimized"], 0)
+        self.assertEqual(payload["summary"]["projected_monthly_savings"], 0)
+        self.assertEqual(payload["top_tool_wins"], [])
+
+    def test_present_final_success_uses_weighted_average_when_session_counts_exist(self):
+        scan_payload = {
+            "optimization_plan": {
+                "tools": [
+                    {
+                        "tool_id": "claude_code",
+                        "tool_label": "Claude Code",
+                        "before_after": {
+                            "current_avg_cost_per_session": 1.50,
+                            "projected_avg_cost_per_session": 1.00,
+                            "projected_monthly_savings": 300.0,
+                        },
+                    },
+                    {
+                        "tool_id": "codex",
+                        "tool_label": "OpenAI Codex CLI",
+                        "before_after": {
+                            "current_avg_cost_per_session": 0.50,
+                            "projected_avg_cost_per_session": 0.25,
+                            "projected_monthly_savings": 40.0,
+                        },
+                    },
+                ]
+            },
+            "header_statistics": {
+                "tools": [
+                    {"id": "claude_code", "sessions": 3},
+                    {"id": "codex", "sessions": 1},
+                ]
+            },
+        }
+        fixture_path = ROOT / "tests/fixtures/tmp-final-success-weighted.json"
+        fixture_path.write_text(json.dumps(scan_payload))
+        try:
+            payload = run_json("present_final_success.py", fixture_path)
+        finally:
+            fixture_path.unlink(missing_ok=True)
+
+        self.assertEqual(payload["summary"]["avg_cost_before"], 1.25)
+        self.assertEqual(payload["summary"]["avg_cost_after"], 0.812)
+
+    def test_present_education_builds_continuity_and_handoff_payload(self):
+        analysis = run_json("analyze_claude_sessions.py", ROOT / "tests/fixtures/claude/sessions.json")
+        analysis_path = ROOT / "tests/fixtures/tmp-education-analysis.json"
+        lesson_path = ROOT / "tests/fixtures/tmp-lesson.json"
+        analysis_path.write_text(json.dumps(analysis))
+        try:
+            lesson = run_json("explain.py", analysis_path)
+            lesson_path.write_text(json.dumps(lesson))
+            payload = run_json("present_education.py", lesson_path)
+        finally:
+            analysis_path.unlink(missing_ok=True)
+            lesson_path.unlink(missing_ok=True)
+
+        self.assertEqual(payload["kind"], "optimization_education")
+        self.assertEqual(payload["hero"]["eyebrow"], "Keep the gains")
+        self.assertEqual(payload["session_habits"]["recommended_active_minutes"], "A good default is 5-10 active minutes per focused session.")
+        self.assertIn("https://github.com/wallmage/handoff", payload["handoff"]["install_prompt"])
+        self.assertEqual(
+            [section["kind"] for section in payload["sections"]],
+            ["hero", "context", "habits", "continuity", "handoff"],
+        )
 
     def test_export_optimization_log_writes_scan_markdown(self):
         analysis = run_json("analyze_claude_sessions.py", ROOT / "tests/fixtures/claude/sessions.json")
@@ -1421,6 +2030,54 @@ class RegressionTests(unittest.TestCase):
         self.assertIn("## Top Savings Captured", content)
         self.assertIn("## What Changed", content)
         self.assertIn("Active session duration", content)
+
+    def test_export_optimization_log_includes_skipped_steps_and_finish_option(self):
+        payload = {
+            "kind": "tool_success",
+            "hero": {"headline": "Claude Code is projected to drop from $1.51/session to $1.31/session."},
+            "tool_success": {
+                "tool_id": "claude_code",
+                "tool_label": "Claude Code",
+                "top_savings": [],
+                "summary": {
+                    "avg_cost_before": 1.51,
+                    "avg_cost_after": 1.31,
+                    "waste_ratio_before_pct": 37.0,
+                    "projected_monthly_savings": 120.0,
+                },
+            },
+            "status_report": {
+                "before_after": {
+                    "avg_cost_before": 1.51,
+                    "avg_cost_after": 1.31,
+                    "waste_ratio_before_pct": 37.0,
+                    "projected_monthly_savings": 120.0,
+                },
+                "key_statistics": {},
+                "top_savings": [],
+                "optimization_strategy": {"summary": "Project-only optimization."},
+                "completed_steps": [{"rank": 1, "title": "Verbose output", "health": {"label": "Waste", "emoji": "❌"}}],
+                "skipped_steps": [{"rank": 2, "title": "Narration"}],
+            },
+            "finish_prompt": {
+                "message": "If not, I can stop here and show the final summary for the work already applied.",
+            },
+        }
+        payload_path = ROOT / "tests/fixtures/tmp-export-tool-success-skipped.json"
+        output_path = ROOT / "tests/fixtures/tmp-tool-success-skipped-log.md"
+        payload_path.write_text(json.dumps(payload))
+        try:
+            run_json("export_optimization_log.py", payload_path, output_path)
+        finally:
+            payload_path.unlink(missing_ok=True)
+        try:
+            content = output_path.read_text()
+        finally:
+            output_path.unlink(missing_ok=True)
+
+        self.assertIn("## Skipped Steps", content)
+        self.assertIn("2. Narration", content)
+        self.assertIn("## Finish Here", content)
 
     def test_validate_scan_payload_rejects_bad_approval_command_shape(self):
         payload_path = ROOT / "tests/fixtures/tmp-invalid-payload.json"

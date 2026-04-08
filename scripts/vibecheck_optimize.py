@@ -6,6 +6,16 @@ import shutil
 import sys
 from pathlib import Path
 
+from workflow_state import (
+    STEP_STATUS_APPLIED,
+    STEP_STATUS_SKIPPED,
+    actionable_targets,
+    actionable_targets_for_step,
+    applied_steps,
+    ensure_execution_state,
+    mark_step_status,
+)
+
 
 MARKDOWN_START = "<!-- vibecheck:cost-rules:start -->"
 MARKDOWN_END = "<!-- vibecheck:cost-rules:end -->"
@@ -136,13 +146,10 @@ def build_rule_lines(step):
     return unique(lines)
 
 
-def collect_targets(tool, step):
-    raw_targets = step.get("target_files") or tool.get("optimization_strategy", {}).get("primary_targets", [])
+def collect_targets(raw_targets):
     results = []
     seen = set()
-    for target in raw_targets:
-        if target.get("kind") != "instruction_file":
-            continue
+    for target in actionable_targets(raw_targets):
         path = target.get("path") or target.get("file")
         if not path or path in seen:
             continue
@@ -163,7 +170,8 @@ def is_editable_instruction_file(path):
     return target.suffix.lower() not in SKIP_SUFFIXES
 
 
-def render_block(path, step, rules):
+def render_block(path, steps, rules):
+    step_titles = ", ".join(step.get("title", f"Step {step.get('rank', '?')}") for step in steps)
     if is_markdown(path):
         body = "\n".join(f"- {line}" for line in rules)
         return "\n".join(
@@ -173,7 +181,7 @@ def render_block(path, step, rules):
                 "",
                 body,
                 "",
-                f"_Applied from step {step.get('rank')}: {step.get('title', 'Optimization step')}_",
+                f"_Applied from: {step_titles}_",
                 MARKDOWN_END,
             ]
         )
@@ -183,7 +191,7 @@ def render_block(path, step, rules):
         [
             PLAINTEXT_START,
             body,
-            f"Applied from step {step.get('rank')}: {step.get('title', 'Optimization step')}",
+            f"Applied from: {step_titles}",
             PLAINTEXT_END,
         ]
     )
@@ -212,9 +220,37 @@ def ensure_backup(path):
     return backup_path, False
 
 
-def apply_tool_step(tool, step):
-    targets = collect_targets(tool, step)
-    rules = build_rule_lines(step)
+def persist_payload(path, payload):
+    with open(path, "w") as f:
+        json.dump(payload, f, indent=2)
+        f.write("\n")
+
+
+def build_cumulative_rules(tool):
+    lines = []
+    for step in applied_steps(tool):
+        lines.extend(build_rule_lines(step))
+    return unique(lines)
+
+
+def collect_applied_targets(tool):
+    raw_targets = []
+    for step in applied_steps(tool):
+        raw_targets.extend(step.get("target_files", []))
+    if not raw_targets:
+        raw_targets.extend(tool.get("optimization_strategy", {}).get("effective_targets", []))
+    return collect_targets(raw_targets)
+
+
+def apply_cumulative_rules(tool):
+    targets = collect_applied_targets(tool)
+    rules = build_cumulative_rules(tool)
+    if not targets:
+        return {
+            "applied": [],
+            "skipped": [],
+            "rules_written": rules,
+        }
 
     applied = []
     skipped = []
@@ -234,7 +270,7 @@ def apply_tool_step(tool, step):
         backup_path, backup_created = ensure_backup(path)
         with open(path) as f:
             original = f.read()
-        block = render_block(path, step, rules)
+        block = render_block(path, applied_steps(tool), rules)
         updated = replace_or_append_block(original, block, is_markdown(path))
         with open(path, "w") as f:
             f.write(updated)
@@ -256,42 +292,66 @@ def apply_tool_step(tool, step):
 
 def apply_step(payload_path, tool_id, step_rank):
     payload = load_json(payload_path)
+    ensure_execution_state(payload)
     tool = find_tool(payload.get("optimization_plan", {}), tool_id)
     step = find_step(tool, step_rank)
-    result = apply_tool_step(tool, step)
+
+    if not actionable_targets_for_step(step):
+        fail(f"step {step_rank} for {tool_id} has no editable instruction targets")
+
+    mark_step_status(payload, tool_id, step_rank, STEP_STATUS_APPLIED, applied_targets=step.get("target_files", []))
+    tool = find_tool(payload.get("optimization_plan", {}), tool_id)
+    result = apply_cumulative_rules(tool)
+    mark_step_status(
+        payload,
+        tool_id,
+        step_rank,
+        STEP_STATUS_APPLIED,
+        applied_targets=result["applied"],
+        skipped_targets=result["skipped"],
+    )
+    persist_payload(payload_path, payload)
+    refreshed_tool = find_tool(payload.get("optimization_plan", {}), tool_id)
     result.update(
         {
             "ok": True,
             "tool_id": tool_id,
             "step_rank": step_rank,
+            "next_pending_step_rank": refreshed_tool.get("execution_state", {}).get("next_step_rank"),
+            "tool_complete": refreshed_tool.get("execution_state", {}).get("status") == "completed",
         }
     )
     return result
 
 
 def apply_all_steps_for_tool(payload, tool_id):
+    ensure_execution_state(payload)
     tool = find_tool(payload.get("optimization_plan", {}), tool_id)
-    applied = []
-    skipped = []
     step_results = []
     for step in sorted(tool.get("steps", []), key=lambda item: item.get("rank", 0)):
-        result = apply_tool_step(tool, step)
-        applied.extend(result["applied"])
-        skipped.extend(result["skipped"])
+        if not actionable_targets_for_step(step):
+            continue
+        mark_step_status(payload, tool_id, step.get("rank"), STEP_STATUS_APPLIED, applied_targets=step.get("target_files", []))
         step_results.append(
             {
                 "step_rank": step.get("rank"),
                 "step_title": step.get("title"),
-                "applied_targets": len(result["applied"]),
-                "skipped_targets": len(result["skipped"]),
+                "applied_targets": len(actionable_targets_for_step(step)),
+                "skipped_targets": 0,
             }
         )
+    tool = find_tool(payload.get("optimization_plan", {}), tool_id)
+    result = apply_cumulative_rules(tool)
+    for step in applied_steps(tool):
+        step.get("execution", {})["applied_targets"] = result["applied"]
+        step.get("execution", {})["skipped_targets"] = result["skipped"]
+    ensure_execution_state(payload)
 
     return {
         "tool_id": tool_id,
         "tool_label": tool.get("tool_label", tool_id),
-        "applied": applied,
-        "skipped": skipped,
+        "applied": result["applied"],
+        "skipped": result["skipped"],
         "step_results": step_results,
     }
 

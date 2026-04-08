@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Apply all planned optimization steps to the remaining tools after tool #1 approval."""
 import json
-import os
 import sys
 
-from vibecheck_optimize import apply_all_steps_for_tool, load_json
+from vibecheck_optimize import apply_all_steps_for_tool, load_json, persist_payload
+from workflow_state import ensure_execution_state
 
 
 def fail(message):
@@ -18,6 +18,7 @@ def main():
         sys.exit(1)
 
     payload = load_json(sys.argv[1])
+    ensure_execution_state(payload)
     completed_tool_id = sys.argv[2] if len(sys.argv) == 3 else None
     plan = payload.get("optimization_plan", {})
     tools = plan.get("tools", [])
@@ -26,7 +27,7 @@ def main():
 
     remaining = [
         tool for tool in tools
-        if tool.get("tool_id") != completed_tool_id
+        if tool.get("tool_id") != completed_tool_id and tool.get("can_auto_optimize") and tool.get("steps")
     ]
 
     results = []
@@ -37,6 +38,8 @@ def main():
         total_applied += len(result["applied"])
         total_skipped += len(result["skipped"])
         results.append(result)
+
+    persist_payload(sys.argv[1], payload)
 
     print(
         json.dumps(

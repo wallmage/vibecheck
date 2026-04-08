@@ -5,6 +5,8 @@ import os
 import sys
 
 from scan_contract import PAYLOAD_KINDS
+from vibecheck_optimize import build_rule_lines
+from workflow_state import ensure_execution_state, pending_steps
 
 
 def fail(message):
@@ -76,6 +78,8 @@ def build_payload(tool, step):
     if strategy.get("fallback_target_count"):
         body_parts.append(f"Fallback project targets: {strategy.get('fallback_target_count')}")
 
+    preview_lines = [f"+ {line}" for line in build_rule_lines(step)]
+
     return {
         "visibility": "approval",
         "kind": PAYLOAD_KINDS["approval"],
@@ -86,6 +90,10 @@ def build_payload(tool, step):
             "title": f"Optimize {tool.get('tool_label', tool.get('tool_id'))}: step {step.get('rank')}",
             "body": " ".join(part for part in body_parts if part),
             "command": build_command(tool.get("tool_id"), step.get("rank")),
+        },
+        "proposed_change": {
+            "format": "diff_preview",
+            "additions": preview_lines,
         },
         "workflow": {
             "tool_id": tool.get("tool_id"),
@@ -105,6 +113,7 @@ def main():
         sys.exit(1)
 
     payload = load_json(sys.argv[1])
+    ensure_execution_state(payload)
     tool = find_tool(payload.get("optimization_plan", {}), sys.argv[2])
     step = find_step(tool, int(sys.argv[3]))
     print(json.dumps(build_payload(tool, step), indent=2))

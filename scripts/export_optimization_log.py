@@ -391,6 +391,25 @@ def render_tool_success_markdown(payload):
             "",
         ])
 
+    skipped_steps = status_report.get("skipped_steps", [])
+    if skipped_steps:
+        lines.extend([
+            "## Skipped Steps",
+            "\n".join(
+                f"- {step.get('rank', '')}. {step.get('title', 'Untitled step')}"
+                for step in skipped_steps
+            ),
+            "",
+        ])
+
+    finish_prompt = payload.get("finish_prompt")
+    if finish_prompt:
+        lines.extend([
+            "## Finish Here",
+            finish_prompt.get("message", ""),
+            "",
+        ])
+
     continue_prompt = payload.get("continue_prompt")
     if continue_prompt:
         lines.extend([
