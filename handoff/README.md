@@ -1,9 +1,12 @@
 # handoff
 
-[![Copy-paste workflow](https://img.shields.io/badge/workflow-copy%20%2B%20paste-1f6feb)](https://github.com/wallmage/handoff)
-[![Works in](https://img.shields.io/badge/works%20in-CLI%20%2F%20GUI%20%2F%20chat-0a7f5a)](https://github.com/wallmage/handoff)
-[![No files](https://img.shields.io/badge/storage-no%20files-6f42c1)](https://github.com/wallmage/handoff)
-[![Sister skill](https://img.shields.io/badge/sister%20skill-vibecheck-f97316)](https://github.com/wallmage/vibecheck)
+[![GitHub stars](https://img.shields.io/github/stars/wallmage/handoff?style=flat-square)](https://github.com/wallmage/handoff/stargazers)
+[![GitHub last commit](https://img.shields.io/github/last-commit/wallmage/handoff?style=flat-square)](https://github.com/wallmage/handoff/commits/main)
+[![GitHub repo size](https://img.shields.io/github/repo-size/wallmage/handoff?style=flat-square)](https://github.com/wallmage/handoff)
+[![Workflow](https://img.shields.io/badge/workflow-copy%20%26%20paste-1f6feb?style=flat-square)](https://github.com/wallmage/handoff)
+[![Works in](https://img.shields.io/badge/works%20in-CLI%20%7C%20GUI%20%7C%20chat-0a7f5a?style=flat-square)](https://github.com/wallmage/handoff)
+[![Storage](https://img.shields.io/badge/storage-no%20files-6f42c1?style=flat-square)](https://github.com/wallmage/handoff)
+[![Sister skill](https://img.shields.io/badge/sister%20skill-vibecheck-f97316?style=flat-square)](https://github.com/wallmage/vibecheck)
 
 Switch chats frequently without losing the thread.
 
@@ -51,16 +54,6 @@ Natural triggers:
 - `start fresh`
 - `wrap up and hand off`
 
-## Quick flow
-
-1. work until the current chat is getting heavy
-2. say `handoff`
-3. copy the generated block
-4. start a fresh chat
-5. paste the block and continue
-
-That is the whole workflow.
-
 ## When to use it
 
 Use it when:
@@ -68,14 +61,6 @@ Use it when:
 - you finished one slice of work and want a clean next session
 - you want to avoid context rot
 - you want to preserve decisions and current state without keeping the full old thread alive
-
-## Works well with
-
-- coding tools
-- terminal agents
-- GUI coding apps
-- chat products like Claude chat, Cowork, or any other long-thread chat interface
-- any workflow where copy-paste is easier than dragging a huge old thread forward
 
 ## Sister skill: vibecheck
 
