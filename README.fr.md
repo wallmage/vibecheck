@@ -83,6 +83,45 @@ La mise en cache des prompts réduit le coût d'entrée de 10x pour le contenu d
 
 **Utilisateurs avec abonnement :** vous ne voyez pas directement les tarifs API, mais le gaspillage épuise votre quota de messages plus vite. Claude Pro ($20/mois) couvre environ $200 en valeur API. Max ($200/mois) couvre environ $4 000.
 
+<details>
+<summary><strong>Recherche : Ce que vaut réellement votre abonnement en tokens</strong></summary>
+
+### Comment j'ai mesuré
+
+J'utilise le plan Claude 20x Max à $200/mois et j'épuisais régulièrement mon quota. J'ai donc voulu savoir : combien d'utilisation API chaque tier achète-t-il réellement ?
+
+Je suis passé à la facturation API et j'ai suivi les dépenses réelles en dollars sur plus de 100 points de données — chaque activité suivie d'un rafraîchissement de la consommation. Assez pour calculer la relation linéaire entre prix d'abonnement et valeur en tokens.
+
+### Les multiplicateurs
+
+| Plan | Prix | Valeur API | Multiplicateur | Fenêtre 5h | Total hebdo |
+|---|---|---|---|---|---|
+| Claude Pro | $20/mois | ~$200 | 10x | $6.67 | $46.67 |
+| Claude 5x Max | $100/mois | ~$1,000 | 10x | $33.33 | $233.31 |
+| Claude 20x Max | $200/mois | ~$4,000 | 20x | $133.33 | $933.31 |
+
+Seul le tier 20x Max offre un vrai saut de multiplicateur (20x contre 10x pour les tiers inférieurs).
+
+### Durée d'utilisation réelle
+
+- **$20 Claude Pro** — en travail sérieux (dev, recherche, rédaction), moins d'1 heure et votre quota 5h est épuisé. Total hebdomadaire sous 7 heures. Trop limitant pour tout professionnel.
+- **$100 5x Max** — environ 4 heures de travail avant d'atteindre la fenêtre 5h. 30-35 heures/semaine au total. Acceptable pour un usage normal.
+- **$200 20x Max** — pour ceux qui travaillent 80-100+ heures/semaine, souvent en multi-threading sur plusieurs sessions.
+
+### Pourquoi Claude a interdit l'utilisation tierce des abonnements
+
+Ces multiplicateurs l'expliquent. À 10-20x la valeur faciale, chaque dollar d'abonnement achète bien plus de calcul que les tarifs API. Les outils tiers consommant les quotas d'abonnement à des taux équivalents API rendaient le modèle économique insoutenable.
+
+### L'alternative Codex
+
+Je n'ai pas encore totalement mesuré la valeur dollar de Codex, mais au tier $20, Codex Plus fournit environ **3x l'utilisation réelle** de Claude Pro.
+
+Pourquoi : les conversations ChatGPT (même avec le modèle o4 extended thinking) ne comptent pas dans votre quota Codex. Vous obtenez le produit chat complet gratuitement en plus du coding. Donc $20 Codex ≈ $60 Claude en utilisation réelle.
+
+**Si vous ne prévoyez pas d'acheter au moins le tier Claude à $100, prenez $20 Codex Plus.** Vous obtenez la recherche approfondie gratuite, le chat extended thinking gratuit, et 3x plus d'utilisation coding que Claude Pro.
+
+</details>
+
 ### Scénario de référence
 
 Tous les montants ci-dessous utilisent cette base de calcul (Sonnet 4.6) :

@@ -83,6 +83,45 @@ O prompt caching reduz o custo de entrada em 10x para conteúdo já visto. A mai
 
 **Usuários com assinatura:** Você não vê os preços de API diretamente, mas o desperdício consome sua cota de mensagens mais rápido. Claude Pro ($20/mês) cobre ~$200 em valor de API. Max ($200/mês) cobre ~$4.000.
 
+<details>
+<summary><strong>Pesquisa: Quanto vale de verdade sua assinatura em tokens</strong></summary>
+
+### Como eu medi
+
+Tenho o plano Claude 20x Max de $200/mês e vivia estourando a cota. Então fiquei curioso: quanto de uso de API cada tier realmente compra?
+
+Mudei para cobrança por API e rastreei o gasto real em dólares em mais de 100 pontos de dados — cada atividade seguida de uma atualização do consumo. O suficiente para calcular a relação linear entre preço da assinatura e valor em tokens.
+
+### Os multiplicadores
+
+| Plano | Preço | Valor API | Multiplicador | Janela 5h | Total semanal |
+|---|---|---|---|---|---|
+| Claude Pro | $20/mês | ~$200 | 10x | $6.67 | $46.67 |
+| Claude 5x Max | $100/mês | ~$1,000 | 10x | $33.33 | $233.31 |
+| Claude 20x Max | $200/mês | ~$4,000 | 20x | $133.33 | $933.31 |
+
+Só o tier 20x Max oferece um salto real de multiplicador (20x vs. 10x nos tiers mais baratos).
+
+### Horas reais de uso
+
+- **$20 Claude Pro** — trabalho sério (dev, pesquisa, redação) dura menos de 1 hora antes da cota de 5h acabar. Total semanal abaixo de 7 horas. Limitado demais para qualquer profissional.
+- **$100 5x Max** — dá para trabalhar umas 4 horas antes de bater na janela de 5h. 30-35 horas/semana no total. Aceitável para uso normal.
+- **$200 20x Max** — para quem trabalha 80-100+ horas/semana, geralmente com múltiplas sessões em paralelo.
+
+### Por que o Claude proibiu o uso de assinaturas por terceiros
+
+Esses multiplicadores explicam. Com 10-20x o valor de face, cada dólar de assinatura compra muito mais computação do que os preços de API oferecem. Ferramentas de terceiros consumindo cotas de assinatura a taxas equivalentes à API tornaram o modelo econômico insustentável.
+
+### A alternativa Codex
+
+Ainda não medi completamente o valor em dólares do Codex, mas no tier de $20, Codex Plus entrega aproximadamente **3x o uso real** do Claude Pro.
+
+Por quê: conversas no ChatGPT (mesmo com o modelo o4 de pensamento estendido) não contam na sua cota do Codex. Você ganha o produto de chat completo de graça além do uso de código. Então $20 Codex ≈ $60 Claude em uso real.
+
+**Se você não pretende comprar pelo menos o tier de $100 do Claude, pegue $20 Codex Plus.** Você ganha deep research grátis, chat com pensamento estendido grátis, e 3x mais uso de código que o Claude Pro.
+
+</details>
+
 ### Cenário de referência
 
 Todos os valores em dólares abaixo usam esta base de cálculo (Sonnet 4.6):
