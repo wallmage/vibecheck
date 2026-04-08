@@ -9,7 +9,6 @@ Transcript JSONL files live beside that store:
 
 This script emits the same top-level JSON shape as the other vibecheck finders.
 """
-import glob
 import json
 import platform
 import sys

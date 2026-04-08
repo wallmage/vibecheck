@@ -1,27 +1,35 @@
 # vibecheck
 
-[English](README.md) | [中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md) | [Deutsch](README.de.md) | [Français](README.fr.md) | [한국어](README.ko.md) | [Español](README.es.md) | [Italiano](README.it.md) | [Português](README.pt-BR.md)
+[![GitHub stars](https://img.shields.io/github/stars/wallmage/vibecheck?style=flat-square)](https://github.com/wallmage/vibecheck/stargazers)
+[![GitHub forks](https://img.shields.io/github/forks/wallmage/vibecheck?style=flat-square)](https://github.com/wallmage/vibecheck/network/members)
+[![GitHub watchers](https://img.shields.io/github/watchers/wallmage/vibecheck?style=flat-square)](https://github.com/wallmage/vibecheck/watchers)
+[![GitHub last commit](https://img.shields.io/github/last-commit/wallmage/vibecheck?style=flat-square)](https://github.com/wallmage/vibecheck/commits/main)
+[![GitHub repo size](https://img.shields.io/github/repo-size/wallmage/vibecheck?style=flat-square)](https://github.com/wallmage/vibecheck)
+[![Top language](https://img.shields.io/github/languages/top/wallmage/vibecheck?style=flat-square)](https://github.com/wallmage/vibecheck)
+[![Privacy](https://img.shields.io/badge/privacy-local%20only-111827?style=flat-square)](https://github.com/wallmage/vibecheck)
+[![Coverage](https://img.shields.io/badge/coverage-24%2B%20tools-0f766e?style=flat-square)](https://github.com/wallmage/vibecheck)
+[![Platforms](https://img.shields.io/badge/platforms-macOS%20%7C%20Linux%20%7C%20Windows-4f46e5?style=flat-square)](https://github.com/wallmage/vibecheck)
+[![Focus](https://img.shields.io/badge/focus-cost%20optimization-b45309?style=flat-square)](https://github.com/wallmage/vibecheck)
+[![Works with](https://img.shields.io/badge/works%20with-Claude%20%7C%20Codex%20%7C%20Gemini-2563eb?style=flat-square)](https://github.com/wallmage/vibecheck)
 
-**Chaque tour que prend votre IA a un coût.** Sonnet 4.6 : $3/$15 par million de tokens (entrée/sortie). Opus 4.6 : $5/$25 — 1,67x plus cher. Voici ce que ça représente concrètement :
+[English](README.md) | [中文](README.zh-CN.md) | [繁體中文](README.zh-TW.md) | [日本語](README.ja.md) | [Deutsch](README.de.md) | Français | [한국어](README.ko.md) | [Español](README.es.md) | [Italiano](README.it.md) | [Português](README.pt-BR.md)
 
-- Votre IA dit « OK, je vais corriger ça » avant de s'exécuter. Ce tour de narration : **$0.017 gaspillé.** Sur 428 sessions réelles : **$1.03/session perdus.**
-- Votre conversation atteint 74 tours au lieu d'être découpée à 20. Coût supplémentaire lié à la relecture de tout l'historique : **$0.46 gaspillé.**
-- `git add`, puis `git commit`, puis `git push` — trois tours au lieu d'une commande chaînée : **$0.044 gaspillé.**
+J'atteignais systématiquement mon quota Claude en début d'après-midi sans comprendre pourquoi. Il s'est avéré que 70 % de mes sessions de coding IA étaient du gaspillage — l'IA décrivait ce qu'elle allait faire, des commandes réparties sur trois tours alors qu'un seul suffisait, du contexte périmé qui s'accumulait et était relu à chaque tour.
 
-Ce sont 3 des 15 schémas de gaspillage que vibecheck détecte. Chacun est expliqué ci-dessous avec les montants en dollars, ce qui se passe mal et comment y remédier.
+vibecheck trouve ce gaspillage. Il lit les logs de vos sessions sur 24+ outils de coding, chiffre 15 patterns spécifiques et les corrige. Tout s'exécute en local. Rien n'est uploadé, pas de télémétrie, pas de serveurs.
 
-Compatible avec Claude, GPT, Gemini, DeepSeek, Qwen, Kimi, GLM, MiniMax. 24+ outils de développement. S'exécute en local — vos données restent sur votre machine.
+Dans mon cas : les dépenses mensuelles sont passées de $2,816 à $422. **85 % de réduction.**
 
-## Comment installer
+## Installation
 
-Collez ceci dans votre outil de développement IA et appuyez sur Entrée :
+Collez ceci dans votre outil de coding IA et appuyez sur Entrée :
 
 > Help me install this skill: https://github.com/wallmage/vibecheck
 
-C'est tout. Votre IA fait le reste.
+C'est tout. Votre IA charge le skill et vous êtes prêt à scanner.
 
 <details>
-<summary>Ou installer manuellement en ligne de commande</summary>
+<summary>Ou installez manuellement via la ligne de commande</summary>
 
 ```bash
 git clone https://github.com/wallmage/vibecheck.git ~/.claude/skills/vibecheck
@@ -32,65 +40,91 @@ Puis tapez `/vibecheck scan` dans n'importe quelle session.
 Pour mettre à jour : `cd ~/.claude/skills/vibecheck && git pull`
 </details>
 
-### Qu'est-ce qu'une skill ?
+### Qu'est-ce qu'un « skill » exactement ?
 
-Une fiche recette pour votre IA. Elle ne modifie rien et n'installe rien. C'est simplement un fichier texte qui explique « voici comment trouver les gaspillages et les corriger ». Supprimez-la quand vous voulez.
+Un fichier texte brut qui apprend à votre IA quelque chose de nouveau. Pas de binaires, pas de processus en arrière-plan, pas de modifications système. Le fichier skill de vibecheck dit « voici comment trouver le gaspillage et le corriger ». Supprimez le dossier et c'est fini.
 
-### Outils de développement vs outils de chat
+### Outils de coding vs. outils de chat
 
-**Les outils de développement** (Claude Code, Codex, Cursor, OpenClaw, Copilot, Windsurf, TRAE, Qoder, etc.) s'exécutent sur votre machine — vibecheck détecte automatiquement votre outil et analyse vos journaux de session.
+**Les outils de coding** (Claude Code, Codex, Cursor, OpenClaw, Copilot, Windsurf, TRAE, Qoder, etc.) tournent sur votre machine et laissent des logs de session. vibecheck détecte automatiquement ceux que vous avez et scanne directement ces logs.
 
-**Les outils de chat** (Cowork, navigateur web) s'exécutent dans un environnement isolé. vibecheck optimise tout de même votre fichier d'instructions (l'essentiel du bénéfice), ou vous pouvez coller une commande de terminal pour copier 14 jours de journaux et effectuer une analyse complète.
+**Les outils de chat** (Cowork, Claude dans le navigateur) tournent dans un bac à sable sans logs locaux. vibecheck optimise quand même vos fichiers d'instructions — c'est là que provient l'essentiel des économies de toute façon. Vous pouvez aussi coller une commande terminal pour exporter 14 jours de logs et faire un scan complet.
 
-### Autorisations
+### Permissions
 
-vibecheck lit et modifie votre fichier d'instructions (CLAUDE.md, .cursorrules, etc.). Il demande confirmation avant chaque modification.
+vibecheck lit vos logs de session locaux et inspecte les fichiers d'instructions (`CLAUDE.md`, `AGENTS.md`, `Memory.md`) ainsi que les paramètres globaux de vos outils. Si votre outil possède une configuration globale — un seul fichier pour tous les projets — l'optimiseur commence par là, car une seule correction vous fait économiser partout. Il demande votre accord avant de modifier quoi que ce soit.
 
 ## Confidentialité
 
-Vos données ne quittent pas votre machine. Aucun serveur, aucune API, aucune télémétrie. Open source.
+Tout reste sur votre machine. L'analyse est un ensemble de scripts Python qui parsent vos logs de session locaux. Pas de serveur, pas d'appels API, pas d'analytics. Open source — lisez chaque ligne si vous voulez.
 
 ## Commandes
 
-- `/vibecheck scan` — vous explique ce que sont les tokens, analyse vos sessions, applique les corrections
-- `/vibecheck explain` — uniquement la leçon, sans modification
-- `/vibecheck compress` — réduit votre fichier d'instructions de 25 à 50 %
-- `/vibecheck monitor` — comparaison hebdomadaire, signale les régressions
+| Commande | Fonction |
+|---|---|
+| `/vibecheck scan` | Scanne tous les outils détectés sur votre machine. Un rapport unifié avec indicateurs de santé, statistiques classées, principaux patterns de gaspillage et feuille de route d'optimisation |
+| `/vibecheck explain` | Vous enseigne les patterns de gaspillage sans rien modifier. Purement éducatif |
+| `/vibecheck compress` | Réduit vos fichiers d'instructions de 25-50 % via un compresseur sans perte en 4 passes |
+| `/vibecheck monitor` | Comparaison hebdomadaire avec votre référence. Détecte les régressions de coût avant qu'elles ne s'accumulent |
+
+Le scan reste discret : un indicateur de progression compact, puis un résumé propre. `Good` signifie un gaspillage mesuré sous 10 %, `Waste` signifie au-dessus. Les logs bruts et les sorties d'outils restent en coulisses sauf en cas de problème.
+
+### Garder les sessions fraîches
+
+Les longues conversations coûtent plus cher que les courtes — chaque nouveau tour relit tous les anciens, et un contexte surchargé rend l'IA moins précise, ce qui augmente les allers-retours.
+
+Règle d'or : 5-10 minutes actives par session, 30-40 tours avant que la taxe de contexte ne se fasse vraiment sentir. Quand vous démarrez une nouvelle session, conservez vos règles permanentes dans les fichiers d'instructions (`CLAUDE.md`, `AGENTS.md`, `Memory.md`) et le contexte projet dans de petits documents locaux. Nouvelle session ne veut pas dire repartir de zéro — juste un contexte propre avec toutes vos connaissances intactes.
+
+---
 
 ## Avant / Après
 
-```
-                          AVANT          APRÈS          VARIATION
-Nb moy. de tours/session  73.9           21.1           -52.8
-Fenêtre de context moy.   65.6K          33.7K          -49%
-Tours gaspillés           73.7%          8.0%           -65.7%
+Mesuré sur des sessions réelles :
 
-Coût moy. par session     $3.07          $0.46          -$2.61
-Dépense mensuelle         $2,816         $422           -$2,394
+```
+                          BEFORE         NOW            CHANGE
+Avg turns/session         73.9           21.1           -52.8
+Avg context window        65.6K          33.7K          -49%
+Wasteful turns            73.7%          8.0%           -65.7%
+
+Avg cost/session          $3.07          $0.46          -$2.61
+Monthly spend             $2,816         $422           -$2,394
 ```
 
 ---
 
-## Comment les tours coûtent de l'argent
+## Comment les tours IA coûtent de l'argent
 
-À chaque tour, votre IA relit l'intégralité de la conversation — le prompt système, le fichier d'instructions, tous les messages précédents, tous les résultats d'outils — puis génère une réponse.
+Introduction rapide pour ceux qui n'ont jamais réfléchi à l'économie des tokens. Aucune connaissance préalable en tarification IA requise.
 
-**Coût d'un tour = tokens d'entrée × tarif entrée + tokens de sortie × tarif sortie**
+### Ce qui se passe à chaque tour
 
-Les premiers tours sont bon marché (contexte réduit). Les tours tardifs sont coûteux (tout ce qui précède est relu). C'est pourquoi le gaspillage s'amplifie — un tour gaspillé renchérit tous les tours suivants, car le contenu inutile reste dans le context.
+Chaque fois que votre IA répond, elle relit l'intégralité de la conversation depuis le début. Prompt système, fichier d'instructions, chaque message que vous avez envoyé, chaque réponse qu'elle a donnée, toutes les sorties d'outils — contenus de fichiers, résultats terminal, logs d'erreur — tout. Puis elle génère une nouvelle réponse.
 
-La mise en cache des prompts réduit le coût d'entrée de 10x pour le contenu déjà vu. La plupart des outils l'activent automatiquement.
+**Coût du tour = tokens lus x prix d'entrée + tokens générés x prix de sortie**
 
-**Utilisateurs avec abonnement :** vous ne voyez pas directement les tarifs API, mais le gaspillage épuise votre quota de messages plus vite. Claude Pro ($20/mois) couvre environ $200 en valeur API. Max ($200/mois) couvre environ $4 000.
+Les premiers tours sont bon marché. Le tour 1 lit peut-être 5,000 tokens. Au tour 40, il relit 40,000+ tokens de conversation accumulée — chaque message précédent, chaque snippet de code, chaque trace d'erreur. Ce tour tardif coûte 8x le premier.
+
+Le point clé : le gaspillage se **compose**. Un tour gaspillé ne coûte pas seulement ses propres tokens. Il reste dans le contexte pour le reste de la session, relu à chaque tour futur. Un message de narration inutile au tour 10 est relu 30 fois de plus avant la fin.
+
+### Le cache de prompt aide, mais ne résout pas tout
+
+La plupart des fournisseurs cachent désormais le contenu déjà vu et facturent 10x moins. Le coût effectif d'entrée passe de $3.00/million de tokens à $0.30/million.
+
+Ça aide. Mais le nouveau contenu — nouvelles sorties d'outils, nouveaux messages d'erreur, chaque nouvelle réponse IA — entre toujours au plein tarif avant d'être caché. Et le gaspillage se compose même au tarif caché.
+
+### Les abonnements subissent la même douleur
+
+Si vous avez un abonnement, vous pensez peut-être que la tarification API ne vous concerne pas. Si — vous le ressentez simplement différemment. Les abonnements achètent un pool fixe de calcul, et le gaspillage consomme ce pool plus vite. Quand vous atteignez votre quota et êtes limité à 15h, ce n'est pas parce que vous avez trop travaillé — c'est parce qu'une grande partie de ce travail était du gaspillage.
+
+Claude Pro ($20/mois) couvre environ $200 en valeur API équivalente. Claude 20x Max ($200/mois) couvre environ $4,000. Plus de gaspillage = mur atteint plus vite.
 
 <details>
-<summary><strong>Recherche : Ce que vaut réellement votre abonnement en tokens</strong></summary>
+<summary><strong>Analyse approfondie : ce que vaut réellement votre abonnement en tokens</strong></summary>
 
 ### Comment j'ai mesuré
 
-J'utilise le plan Claude 20x Max à $200/mois et j'épuisais régulièrement mon quota. J'ai donc voulu savoir : combien d'utilisation API chaque tier achète-t-il réellement ?
-
-Je suis passé à la facturation API et j'ai suivi les dépenses réelles en dollars sur plus de 100 points de données — chaque activité suivie d'un rafraîchissement de la consommation. Assez pour calculer la relation linéaire entre prix d'abonnement et valeur en tokens.
+J'ai le plan Claude 20x Max à $200/mois et je tombais constamment à court de quota. Assez curieux pour passer à la facturation API et suivre les dépenses réelles sur 100+ points de données — chaque activité de coding enregistrée, consommation vérifiée juste après. Cela m'a permis de calculer la relation entre le prix de l'abonnement et la valeur réelle en tokens.
 
 ### Les multiplicateurs
 
@@ -100,266 +134,251 @@ Je suis passé à la facturation API et j'ai suivi les dépenses réelles en dol
 | Claude 5x Max | $100/mois | ~$1,000 | 10x | $33.33 | $233.31 |
 | Claude 20x Max | $200/mois | ~$4,000 | 20x | $133.33 | $933.31 |
 
-Seul le tier 20x Max offre un vrai saut de multiplicateur (20x contre 10x pour les tiers inférieurs).
+Le tier 20x Max est le seul avec un vrai saut de multiplicateur — 20x la valeur faciale contre 10x pour les tiers inférieurs.
 
-### Durée d'utilisation réelle
+### En pratique
 
-- **$20 Claude Pro** — en travail sérieux (dev, recherche, rédaction), moins d'1 heure et votre quota 5h est épuisé. Total hebdomadaire sous 7 heures. Trop limitant pour tout professionnel.
-- **$100 5x Max** — environ 4 heures de travail avant d'atteindre la fenêtre 5h. 30-35 heures/semaine au total. Acceptable pour un usage normal.
-- **$200 20x Max** — pour ceux qui travaillent 80-100+ heures/semaine, souvent en multi-threading sur plusieurs sessions.
+- **$20 Claude Pro** — du travail de développement sérieux (features, recherche, rédaction) consomme votre quota de 5 heures en moins d'une heure. Capacité hebdomadaire sous 7 heures. Serré pour toute utilisation professionnelle.
+- **$100 5x Max** — environ 4 heures avant d'atteindre la fenêtre de 5 heures. 30-35 heures/semaine au total. Praticable pour un usage régulier.
+- **$200 20x Max** — conçu pour ceux qui travaillent 80-100+ heures/semaine, souvent avec plusieurs sessions en parallèle.
 
-### Pourquoi Claude a interdit l'utilisation tierce des abonnements
+### Pourquoi Anthropic a restreint l'utilisation d'abonnements par des tiers
 
-Ces multiplicateurs l'expliquent. À 10-20x la valeur faciale, chaque dollar d'abonnement achète bien plus de calcul que les tarifs API. Les outils tiers consommant les quotas d'abonnement à des taux équivalents API rendaient le modèle économique insoutenable.
+À 10-20x la valeur faciale, chaque dollar d'abonnement achète bien plus de calcul que le tarif API. Les outils tiers consommant à la vitesse API équivalente rendaient l'équation intenable.
 
 ### L'alternative Codex
 
-Je n'ai pas encore totalement mesuré la valeur dollar de Codex, mais au tier $20, Codex Plus fournit environ **3x l'utilisation coding** de Claude Pro.
+Au tier $20, Codex Plus offre environ **3x l'utilisation coding** de Claude Pro. Les conversations ChatGPT — même GPT-5.4 Extended Thinking et la recherche approfondie — ne comptent pas dans le quota coding Codex. Vous obtenez donc 3x la capacité coding plus GPT-5.4 gratuit en prime.
 
-Pourquoi : les conversations ChatGPT — y compris GPT-5.4 Extended Thinking et deep research — ne comptent pas dans votre quota Codex. Le coding seul fait 3x Claude Pro, et vous avez le chat Pro gratuit en plus.
-
-**Si vous ne prévoyez pas d'acheter au moins le tier Claude à $100, prenez $20 Codex Plus.** 3x l'utilisation coding de Claude Pro, plus GPT-5.4 Extended Thinking et deep research gratuits.
+**Si votre budget est de $20/mois, Codex Plus vous donne plus de temps de coding que Claude Pro.** Si vous pouvez dépenser plus, les tiers Claude 5x et 20x offrent une proposition de valeur différente.
 
 </details>
 
 ### Scénario de référence
 
-Tous les montants ci-dessous utilisent cette base de calcul (Sonnet 4.6) :
+Tous les montants de ce document utilisent cette référence (tarification Sonnet 4.6) :
 
 | Paramètre | Valeur |
 |---|---|
-| Durée de session | 25 tours |
-| Context initial | 21 000 tokens |
+| Longueur de session | 25 tours |
+| Contexte de départ | 21,000 tokens |
 | Croissance par tour | ~600 tokens |
 | Taux de cache hit | 95 % |
-| Coût d'un tour en milieu de session | $0.017 |
-| Total d'une session efficace | $0.41 |
+| Coût par tour (milieu de session) | $0.017 |
+| Total session efficace | $0.41 |
 
-Pour Opus 4.6, multipliez tous les coûts par 1,67x.
+Pour Opus 4.6, multipliez tous les coûts par 1.67x.
 
 ---
 
-## Les 15 schémas de gaspillage
+## Les 15 patterns de gaspillage
 
-### Niveau 1 — Les 3 grands (60-70 % du gaspillage)
+Classés par impact financier. Les trois premiers représentent à eux seuls 60-70 % de tout le gaspillage.
 
-#### 1. Narration inutile
+### Tier 1 — Les trois grands (60-70 % du gaspillage)
 
-**De quoi s'agit-il.** L'IA dit « OK, je vais corriger ça » ou « Laissez-moi d'abord lire le fichier » — puis fait le vrai travail au tour suivant. Le tour de narration n'a rien accompli : aucun appel d'outil, aucun code, aucune lecture de fichier.
+#### 1. Narration à vide
 
-**Le gaspillage.** Données réelles (428 sessions) : **$1.03/session — 30 % de tout le gaspillage**. Sur 10 sessions/jour : **$10.30/jour ($309/mois)** rien que pour la narration.
+Votre IA dit « OK, je vais corriger ça » ou « Laissez-moi lire le fichier d'abord » — puis fait le travail au tour suivant. Ce tour de narration n'a rien fait. Pas d'appel d'outil, pas de code, pas de lecture de fichier. Juste une annonce.
 
-**La correction.** vibecheck ajoute : *« Pas de tour sans appel d'outil. Pas de narration. Réfléchir et agir dans le même tour. »* Élimine la narration totalement. **Économise ~$0.88/session.**
+Chacun coûte environ **$0.017** — et pire, ces 300-500 tokens de texte de statut restent dans le contexte, relus à chaque tour futur. Sur 428 sessions mesurées : **$1.03/session gaspillés**, 30 % du gaspillage total. À 10 sessions/jour : **$309/mois rien qu'en narration.**
 
-#### 2. Pourrissement du context
+Règle vibecheck : *« Pas de tour sans appel d'outil. Réfléchir et agir dans le même tour. »* **Économie d'environ $0.88/session.**
 
-**De quoi s'agit-il.** Les longues conversations deviennent progressivement plus coûteuses. Le tour 50 relit les 49 tours précédents. Le coût total de la session croît quadratiquement avec la longueur.
+#### 2. Dégradation du contexte
 
-**Le gaspillage.** Données réelles : **$0.46/session — 13 %**. Une session de 40 tours : **$0.70.** Deux sessions de 20 tours (même travail) : **$0.60.** La différence — **$0.10** — n'achète rien. À 100 tours : une session coûte **$2.53** contre quatre sessions de 25 tours à **$1.64.** Soit **$0.89 gaspillés** faute de découpage.
+Le coût de session croît de façon quadratique, pas linéaire. Le tour 50 relit les 49 tours précédents.
 
-**La correction.** Enseigne : *« Utiliser /clear ou /compact entre des tâches sans rapport. Démarrer de nouvelles conversations. »* **Économise ~$0.37/session.**
+Comparaison concrète : une session de 40 tours coûte **$0.70**. Le même travail réparti en deux sessions de 20 tours : **$0.60**. Cet écart de $0.10 est du pur gaspillage dû au maintien d'une conversation gonflée. Les sessions réelles font en moyenne 74 tours — **$0.46/session gaspillés**, 13 % du gaspillage total.
+
+vibecheck enseigne : *« Les travaux non liés vont dans des sessions séparées. Dans les longs fils, rester compact. »* **Économie d'environ $0.37/session.**
 
 #### 3. Débogage en ping-pong
 
-**De quoi s'agit-il.** Corriger, casser, réessayer, recasser. Chaque tentative échouée ajoute des messages d'erreur dans le context (~4K tokens par cycle), relus à chaque tour suivant.
+Corriger, casser, réessayer, casser encore. Chaque tentative ratée injecte ~4,000 tokens d'erreur dans le contexte, et ce texte mort est relu à chaque tour suivant. Trois cycles : 6 tours supplémentaires ($0.102) + 12K tokens d'erreurs périmées ($0.036) = **environ $0.14 par épisode**. Se produit dans ~10 % des sessions. **Pondéré : $0.015/session.**
 
-**Le gaspillage.** Trois cycles d'échec : 6 tours supplémentaires ($0.102) + 12K tokens d'erreurs mortes ($0.036 de taxe de context). **Total : ~$0.14 par épisode.** Fréquence ~10 %. **Pondéré : $0.015/session.**
+Disjoncteur vibecheck : *« Après 2 corrections ratées sur le même fichier — stop, relire l'erreur complète, réfléchir, une correction ciblée. »* **Économie d'environ $0.01/session.**
 
-**La correction.** Ajoute : *« Après 2 corrections échouées sur le même fichier : s'arrêter, relire l'erreur en entier, réfléchir, une seule correction ciblée. »* **Économise ~$0.01/session.**
+### Tier 2 — Densité des tours (15-20 % du gaspillage)
 
-### Niveau 2 — Densité des tours (15-20 % du gaspillage)
+Faire en trois tours ce qui devrait en prendre un.
 
 #### 4. Sortie d'outil verbeuse
 
-**De quoi s'agit-il.** Une commande build/test déverse 500 lignes (~5K tokens) dans la conversation. Ces tokens sont relus à chaque tour suivant.
+Une commande de build ou de test déverse 500 lignes (~5,000 tokens) dans la conversation. Ces tokens sont relus à chaque tour restant. 5K tokens x 12 tours restants au tarif caché = **$0.018/instance**. Sans cache : **$0.180** — 10x pire.
 
-**Le gaspillage.** Données réelles : **$1.05/session** — 31 % du gaspillage. 5K tokens × 12 tours restants × $0.30/1M = **$0.018/occurrence** de taxe de context. Se produit 2-3 fois/session. Sans cache : **$0.180/occurrence** — 10x pire.
+C'est en fait le pattern le plus coûteux individuellement. Logs de build, sortie npm, dumps de tests — ils inondent presque chaque session. **$1.05/session**, 31 % du gaspillage total.
 
-**La correction.** Ajoute : *« Rediriger la sortie build/test vers /tmp/, utiliser les flags --quiet, tail -50 maximum. »* **Économise ~$0.89/session.**
+Correction : *« Rediriger la sortie vers /tmp/. Utiliser les flags --quiet. tail -50 maximum. »* **Économie d'environ $0.89/session.**
 
 #### 5. Commandes non chaînées
 
-**De quoi s'agit-il.** `npm install` dans un tour, `npm run build` dans le suivant. Deux relectures du context là où `&&` les enchaînerait en une seule.
+`npm install` dans un tour. `npm run build` dans le suivant. Deux relectures de contexte pour ce que `npm install && npm run build` fait en un seul. Chaque division : **$0.010**. Totalise **$0.14/session** dans les sessions intensives en commandes.
 
-**Le gaspillage.** Données réelles : **$0.14/session**. Chaque séparation : **$0.010.** Les sessions typiques en comptent 3-4.
+Correction : *« Chaîner les commandes avec `&&` quand c'est sûr. »* **Économie d'environ $0.11/session.**
 
-**La correction.** Ajoute : *« Chaîner les commandes avec `&&` quand c'est sûr. »* **Économise ~$0.11/session.**
+#### 6. Exploration du codebase
 
-#### 6. Errance dans le code
+L'IA ouvre README, package.json, trois configs et deux modules sans rapport avant d'écrire une seule ligne de code. Cinq lectures consécutives, pas d'éditions, pas de décisions. $0.085 en tours gaspillés + $0.027 taxe de contexte = **$0.112/épisode.** Moyenne : **$0.09/session.**
 
-**De quoi s'agit-il.** L'IA ouvre fichier après fichier — README, package.json, configs — avant de faire quoi que ce soit. Cinq lectures consécutives ou plus avant la première modification.
+Correction : grep ou glob d'abord, ne lire que le pertinent, regrouper plusieurs lectures par tour. **Économie d'environ $0.07/session.**
 
-**Le gaspillage.** Cinq lectures inutiles : $0.085 en tours + $0.027 de taxe de context = **$0.112/épisode.** Se produit dans ~25 % des sessions. **Pondéré : $0.09/session.**
+#### 7. Éditions non groupées
 
-**La correction.** Encourage la recherche ciblée (grep/glob d'abord), le regroupement de plusieurs lectures par tour. **Économise ~$0.07/session.**
+Éditer le fichier A, puis B, puis C — trois tours. Un tour avec des éditions parallèles fait la même chose. Deux tours supplémentaires à $0.017 = **$0.034/instance.** Moyenne : **$0.058/session.**
 
-#### 7. Modifications non regroupées
+Correction : *« Grouper les appels d'outils indépendants. »* **Économie d'environ $0.05/session.**
 
-**De quoi s'agit-il.** Modifier le fichier A, puis B, puis C — trois tours là où un seul avec des modifications en parallèle suffirait.
+### Tier 3 — La queue (5-10 % du gaspillage)
 
-**Le gaspillage.** 2 tours supplémentaires × $0.017 = **$0.034/occurrence.** Se produit dans ~60 % des sessions. **Pondéré : $0.058/session.**
-
-**La correction.** Ajoute : *« Regrouper les appels d'outils indépendants (plusieurs Reads/Edits par tour). »* **Économise ~$0.05/session.**
-
-### Niveau 3 — La longue traîne (5-10 % du gaspillage)
+Petit individuellement. Ça s'accumule.
 
 #### 8. Relectures de fichiers
 
-**De quoi s'agit-il.** Le même fichier lu deux fois dans une session. Le contenu est déjà dans le context après la première lecture.
-
-**Le gaspillage.** 1 tour gaspillé + contenu dupliqué = **$0.019/relecture.** 1-2 par session. **Pondéré : $0.066/session.**
-
-**La correction.** Ajoute : *« Le contenu est dans le context après la première lecture. Ne relire que si le fichier a changé. »* **Économise ~$0.05/session.**
+Le même fichier lu deux fois dans une session — le contenu est déjà en contexte, mais l'IA le récupère à nouveau. **$0.019/relecture**, les fichiers sont relus 3-4 fois en moyenne. **$0.066/session.** Correction : *« Déjà en contexte. Ne relire que si le fichier a changé. »* **Économie d'environ $0.05/session.**
 
 #### 9. Boucles sleep/poll
 
-**De quoi s'agit-il.** `sleep 5 && check_status`, répété 3-5 fois. Chaque vérification relit le context complet.
+`sleep 5 && check_status`, répété 3-5 fois. Chaque poll = relecture complète du contexte pour vérifier si un processus en arrière-plan est terminé. 4 polls x $0.017 = **$0.068/épisode**, **$0.043/session.** Correction : *« Utiliser --wait ou run_in_background. »* **Économie d'environ $0.034/session.**
 
-**Le gaspillage.** 4 vérifications × $0.017 = **$0.068/épisode.** Se produit dans ~20 % des sessions. **Pondéré : $0.043/session.**
+#### 10. Réessais échoués
 
-**La correction.** Ajoute : *« Utiliser les flags --wait ou run_in_background. »* **Économise ~$0.034/session.**
+Commande échoue, l'IA relance la même commande sans modification. La sortie d'erreur est maintenant en double dans le contexte. **$0.019/réessai**, **$0.080/session.** Correction : comme le ping-pong — *« Stop, lire l'erreur, essayer autre chose. »*
 
-#### 10. Nouvelles tentatives après échec
+#### 11. Consultations de schéma
 
-**De quoi s'agit-il.** Une commande échoue, l'IA relance exactement la même commande. Le message d'erreur se retrouve alors deux fois dans le context.
+L'IA consulte ses propres définitions d'outils — des informations qu'elle possède déjà. Ajoute 2K+ tokens pour rien. **$0.023/session.** La règle « pas de tour sans appel d'outil » résout ça. **Économie d'environ $0.02/session.**
 
-**Le gaspillage.** **$0.019/nouvelle tentative.** Se produit dans ~30 % des sessions. **Pondéré : $0.080/session.**
+#### 12. Cérémonie Git
 
-**La correction.** Même règle que le ping-pong : *« S'arrêter, relire l'erreur, réfléchir, une seule correction ciblée. »*
+`git add` → `git status` → `git commit` → `git push`. Quatre tours. `git add -A && git commit -m "msg" && git push` n'en prend qu'un. **$0.044/instance** mais plus rare qu'on ne pense — **$0.003/session.** Correction : chaîner avec `&&`.
 
-#### 11. Recherches de schéma
+### Tier 4 — Agents permanents
 
-**De quoi s'agit-il.** L'IA consulte ses propres définitions d'outils — des informations qu'elle possède déjà. Ajoute 2K+ tokens au context.
+Modèle de coût différent. Les agents comme OpenClaw se réveillent périodiquement, et le gaspillage est mesuré par jour, pas par session.
 
-**Le gaspillage.** **$0.023/recherche.** Se produit dans ~40 % des sessions. **Pondéré : $0.023/session.**
+#### 13. Heartbeats à vide
 
-**La correction.** « Pas de tour sans appel d'outil » décourage les tours de découverte. **Économise ~$0.02/session.**
+L'agent se réveille toutes les 5 minutes, relit tout le workspace, ne trouve rien, se rendort. 288 réveils/jour, ~97 % à vide. Soit 280 réveils inutiles à $0.04 chacun = **$11.20/jour ($336/mois)** pour rien.
 
-#### 12. Cérémonial Git
+Correction : *« Heartbeat minimum de 30 minutes. Passer si aucun déclencheur en attente. »* Réduit à ~48 réveils/jour. **Économie de $8-10/jour ($240-300/mois).**
 
-**De quoi s'agit-il.** `git add` → `git status` → `git commit` → `git push`, quatre tours. `git add -A && git commit -m "msg" && git push` n'en fait qu'un.
+#### 14. Gonflement du workspace
 
-**Le gaspillage.** 3 tours supplémentaires + sortie git = **$0.044/occurrence.** Se produit dans ~70 % des sessions. **Pondéré : $0.003/session.**
+35,000 tokens de fichiers de personnalité (SOUL.md, AGENTS.md, etc.) relus à chaque réveil. Tutoriels, coaching, philosophie — écrits pour des humains, pas pour une IA exécutant des tâches. **$5.76/jour ($173/mois)** rien que pour les fichiers de configuration.
 
-**La correction.** Ajoute : *« Chaîner les commandes git avec `&&`. »* **Économise ~$0.003/session.**
-
-### Niveau 4 — Agents toujours actifs (OpenClaw, etc.)
-
-Modèle de coût différent : coût par réveil × réveils par jour.
-
-#### 13. Battements de cœur en veille
-
-**De quoi s'agit-il.** L'agent se réveille toutes les 5 minutes, relit l'espace de travail complet, ne trouve rien. 288 réveils/jour, ~97 % en veille.
-
-**Le gaspillage.** 280 réveils inutiles/jour × $0.04 = **$11.20/jour ($336/mois)** pour ne rien faire.
-
-**La correction.** *« Fréquence minimale de 30 min. Ignorer s'il n'y a pas de déclencheur. »* Réduit à ~48 réveils/jour. **Économise $8-10/jour ($240-300/mois).**
-
-#### 14. Surcharge des fichiers de l'espace de travail
-
-**De quoi s'agit-il.** 35K tokens de fichiers de personnalité (SOUL.md, AGENTS.md) relus à chaque réveil. L'IA n'a besoin que des règles comportementales — les tutoriels et les guides sont pour les humains.
-
-**Le gaspillage.** **$5.76/jour ($173/mois)** rien que pour lire les fichiers de configuration.
-
-**La correction.** Compresse les fichiers de l'espace de travail : 35K → 12-15K tokens. **Économise $3-4/jour ($90-120/mois).**
+vibecheck les compresse : 35K → 12-15K tokens. Mêmes règles comportementales, sans le remplissage destiné aux humains. **Économie de $3-4/jour ($90-120/mois).**
 
 #### 15. Accumulation de mémoire
 
-**De quoi s'agit-il.** L'historique de session grossit sans élagage. 100+ entrées relues à chaque réveil.
+L'historique de session croît indéfiniment. 100+ entrées mémoire relues à chaque réveil, y compris des choses datant de semaines qui n'ont plus d'importance. **$3.17/jour ($95/mois)** en mémoires périmées.
 
-**Le gaspillage.** **$3.17/jour ($95/mois)** à lire de la mémoire obsolète.
-
-**La correction.** *« Archiver après 50 tours, résumer, repartir de zéro. »* **Économise $2-3/jour ($60-90/mois).**
+Correction : *« Archiver après 50 entrées, résumer, repartir à zéro. »* **Économie de $2-3/jour ($60-90/mois).**
 
 ---
 
-## En prime : outils d'optimisation
+## La boîte à outils d'optimisation
 
-### Compression du fichier d'instructions
+vibecheck ne se contente pas de pointer les problèmes — il les corrige.
 
-Votre fichier d'instructions est lu à chaque tour — une taxe fixe que vous payez quelle que soit la tâche. vibecheck inclut un compresseur sans perte en 4 passes (23 techniques) qui réduit la taille du fichier de 25 à 50 % :
+### Compression des fichiers d'instructions
 
-- **Passe 1 (Mécanique) :** Suppression du markdown, conversion des tableaux, fusion des listes à puces. ~10-15 %.
-- **Passe 2 (Conservation des faits) :** Déduplication des informations, compression des exemples de code. ~15-25 %.
-- **Passe 3 (Haute fidélité) :** Suppression des tutoriels et des textes d'accompagnement utiles aux humains mais pas à l'IA. ~10-15 %.
-- **Passe 4 (Télégraphique) :** Réécriture complète en raccourcis pour les fichiers destinés à l'IA uniquement. ~15-25 % (uniquement avec autorisation).
+Votre fichier d'instructions (`CLAUDE.md`, `AGENTS.md`, `Memory.md`, quel que soit le nom utilisé par votre outil) est lu à chaque tour. C'est une taxe fixe sur tout ce que vous faites. Un fichier d'instructions gonflé, c'est un péage sur chaque route de la ville.
 
-Un fichier de 10K tokens compressé à 6K économise $0.044/session. À 10 sessions/jour : **$0.44/jour ($13/mois).**
+vibecheck dispose d'un compresseur sans perte en 4 passes — 23 techniques, et « sans perte » signifie littéralement qu'aucun fait n'est supprimé. Même information, moins de tokens.
+
+| Passe | Fonction | Économie |
+|---|---|---|
+| **Passe 1 — Mécanique** | Supprime le formatage markdown, convertit les tableaux en forme compacte, fusionne les puces | 10-15 % |
+| **Passe 2 — Préservation des faits** | Déduplique les faits répétés, compresse les exemples de code, replie les descriptions verbeuses | 15-25 % |
+| **Passe 3 — Haute fidélité** | Supprime les tutoriels et textes de coaching dont les humains ont besoin mais pas l'IA | 10-15 % |
+| **Passe 4 — Télégramme** | Réécriture complète en sténographie pour les fichiers réservés à l'IA. Dense, compressé — uniquement avec votre autorisation explicite | 15-25 % |
+
+Un fichier d'instructions de 10,000 tokens compressé à 6,000 économise $0.044 par session. À 10 sessions par jour : **$0.44/jour ($13/mois)** rien qu'avec la compression.
 
 ### Suppression des sorties
 
-Les tokens de sortie coûtent 5x les tokens d'entrée ($15 vs $3/MTok sur Sonnet). L'IA affichant des blocs de code et des diffs complets que vous n'avez pas demandés gaspille **~$0.047/session.** vibecheck ajoute : *« Pas de code/diffs sauf si demandé. »*
+Les tokens de sortie coûtent 5x les tokens d'entrée ($15 vs. $3/million sur Sonnet 4.6). L'IA affiche des blocs de code ou des diffs que vous n'avez pas demandés ? Coûteux. vibecheck ajoute : *« Pas de code ni de diffs sauf demande explicite. »* **Économie d'environ $0.047/session.**
 
 ### Suivi des coûts
 
-`/vibecheck monitor` prend un instantané de votre profil de session et le compare à la référence lors des exécutions suivantes. Détecte les régressions avant qu'elles ne coûtent de l'argent.
+`/vibecheck monitor` prend un instantané de votre profil de session et compare avec la référence lors des exécutions futures. Un nouveau fichier d'instructions a introduit de la verbosité ? Projet différent, habitudes différentes ? Le moniteur détecte les régressions avant qu'elles ne s'accumulent.
 
 ---
 
-## Récapitulatif des économies
+## Résumé des économies
 
-### Outils interactifs (Sonnet 4.6)
+### Outils interactifs (tarification Sonnet 4.6)
 
-| # | Schéma | Gaspillage moy./session | Économie moy. |
+| # | Pattern | Gaspillage moyen/session | Économie moyenne |
 |---|---|---|---|
-| 1 | Narration inutile | $1.03 | $0.88 |
-| 2 | Pourrissement du context | $0.46 | $0.37 |
+| 1 | Narration à vide | $1.03 | $0.88 |
+| 2 | Dégradation du contexte | $0.46 | $0.37 |
 | 3 | Débogage en ping-pong | $0.015 | $0.01 |
 | 4 | Sortie verbeuse | $1.05 | $0.89 |
 | 5 | Commandes non chaînées | $0.14 | $0.11 |
-| 6 | Errance dans le code | $0.09 | $0.07 |
-| 7 | Modifications non regroupées | $0.058 | $0.05 |
+| 6 | Exploration du codebase | $0.09 | $0.07 |
+| 7 | Éditions non groupées | $0.058 | $0.05 |
 | 8 | Relectures de fichiers | $0.066 | $0.05 |
 | 9 | Boucles sleep/poll | $0.043 | $0.034 |
-| 10 | Nouvelles tentatives après échec | $0.080 | $0.080 |
-| 11 | Recherches de schéma | $0.023 | $0.02 |
-| 12 | Cérémonial Git | $0.003 | $0.003 |
+| 10 | Réessais échoués | $0.08 | $0.06 |
+| 11 | Consultations de schéma | $0.023 | $0.02 |
+| 12 | Cérémonie Git | $0.003 | $0.003 |
 | + | Compression | $0.044 | $0.044 |
 | + | Suppression des sorties | $0.047 | $0.038 |
 | | **Total** | **$3.15*** | **$2.61** |
 
-*Les schémas individuels peuvent se chevaucher dans le même tour — les totaux reflètent la mesure par schéma. Économies réelles agrégées : $3.07 → $0.46 (voir le bilan).
+*Les patterns individuels peuvent coexister dans le même tour — les totaux reflètent les mesures par pattern. Agrégat réel : $3.07 à $0.46 (voir Avant / Après).
 
-**Session typique avec gaspillage : $3.07. Après vibecheck : $0.46. Économies : 85 %.**
+**Session gaspilleuse typique : $3.07. Après vibecheck : $0.46. Économie : 85 %.**
 
-- **Faible gaspillage** (sessions courtes, peu de schémas) : 40-55 %
-- **Gaspillage modéré** (utilisateur moyen) : 55-70 %
-- **Fort gaspillage** (longues sessions, multiples schémas) : 70-85 %
+- **Gaspillage léger** (sessions courtes, peu de patterns) : réduction de 40-55 %
+- **Gaspillage modéré** (utilisateur moyen) : réduction de 55-70 %
+- **Gaspillage élevé** (longues sessions, multiples patterns) : réduction de 70-85 %
 
-### Agents toujours actifs
+### Agents permanents
 
-| # | Schéma | Gaspillage quotidien | Économies quotidiennes |
+| # | Pattern | Gaspillage quotidien | Économie quotidienne |
 |---|---|---|---|
-| 13 | Battements de cœur en veille | $11.20 | $9.70 |
-| 14 | Surcharge de l'espace de travail | $5.76 | $3.76 |
+| 13 | Heartbeats à vide | $11.20 | $9.70 |
+| 14 | Gonflement du workspace | $5.76 | $3.76 |
 | 15 | Accumulation de mémoire | $3.17 | $2.37 |
 | | **Total** | **$20.13/jour** | **$15.83/jour** |
 
-**Économies mensuelles pour les agents toujours actifs : ~$475.**
+**Économie mensuelle pour les agents permanents : environ $475.**
 
 ---
 
-## Outils compatibles
+## Outils supportés
 
-24+ outils.
+24+ outils. Pas de lock-in — vibecheck est un fichier texte, toute IA lisant des instructions peut l'utiliser. Les scripts de scan sont en Python pur, sans dépendances.
 
-- **Analyse complète des sessions :** Claude Code, Codex, Cursor, OpenClaw, GitHub Copilot, Windsurf, TRAE, Qoder, CodeBuddy, WorkBuddy, Google Antigravity
-- **Détection + optimisation des instructions :** Cline, Roo Code, Kilo Code, Aider, Gemini CLI, OpenCode, Augment, Kimi Code, MarsCode, Tongyi Lingma, Baidu Comate, CodeGeeX, DevChat, MiniMax
+**Scan complet de session** (lit vos logs, chiffre le gaspillage) :
+Claude Code, Codex, Cursor, OpenClaw, GitHub Copilot, Windsurf, TRAE, Qoder, CodeBuddy, WorkBuddy, Google Antigravity
 
-Tous les LLMs : Claude Opus/Sonnet 4.6, GPT-5.4, Gemini 3.1 Pro, DeepSeek V3.2, Qwen 3.6, Kimi K2.5, GLM-5, MiniMax M2.7, et 40+ autres.
+**Détection + optimisation des instructions** (pas encore de parsing complet des logs, mais détecte l'outil et optimise vos fichiers de configuration) :
+Cline, Roo Code, Kilo Code, Aider, Gemini CLI, OpenCode, Augment, Kimi Code, MarsCode, Tongyi Lingma, Baidu Comate, CodeGeeX, DevChat, MiniMax
 
-macOS, Windows, Linux, iPad via SSH. Python 3.8+, sans dépendances.
+**LLMs avec données tarifaires :** Claude Opus/Sonnet 4.6, GPT-5.4, Gemini 3.1 Pro, DeepSeek V3.2, Qwen 3.6, Kimi K2.5, GLM-5, MiniMax M2.7, plus 40+ autres.
+
+**Plateformes :** macOS, Windows, Linux, iPad via SSH. Python 3.8+.
+
+---
 
 <details>
-<summary>Méthodologie</summary>
+<summary><strong>Méthodologie</strong></summary>
 
-Toutes les estimations de coût utilisent le scénario de référence ci-dessus. Hypothèses principales :
+Toutes les estimations de coût utilisent le scénario de référence ci-dessus. Hypothèses clés :
 
-- **Taux de cache hit de 95 %** — typique pour les sessions de développement rapide. Les sessions plus lentes auront des coûts plus élevés.
-- **25 tours productifs/session** — les sessions avec gaspillage ajoutent 8-12 tours supplémentaires dus à la narration, aux nouvelles tentatives et aux commandes non chaînées.
-- **600 tokens/tour de croissance** — les sessions verbeuses peuvent atteindre 1 000-2 000.
-- **Taux d'entrée effectif : $0.435/1M** — mélange 95 % avec cache ($0.30) + 5 % sans cache ($3.00).
-- **Taux de taxe de context : $0.30/1M** — taux d'entrée avec cache pour les ajouts permanents au context.
+- **95 % de taux de cache hit** — typique pour les sessions de coding rapides. Les sessions plus lentes avec de longues pauses entre les tours auront des taux de cache inférieurs et des coûts plus élevés.
+- **25 tours productifs/session** — les sessions gaspilleuses ajoutent 8-12 tours supplémentaires dus à la narration, aux réessais et aux commandes non chaînées.
+- **600 tokens/tour de croissance** — les sessions verbeuses peuvent atteindre 1,000-2,000 tokens par tour.
+- **Tarif d'entrée effectif : $0.435/1M** — tarif pondéré de 95 % caché ($0.30/1M) + 5 % non caché ($3.00/1M).
+- **Taux de taxe de contexte : $0.30/1M** — tarif d'entrée caché pour les ajouts permanents au contexte.
 
-Les estimations sont conservatives. Les économies réelles peuvent dépasser les projections pour les utilisateurs ayant de longues sessions, des fichiers d'instructions volumineux, ou un débogage intensif.
+Estimations conservatrices. Les économies réelles dépassent souvent ces chiffres, surtout avec de longues sessions, de gros fichiers d'instructions ou du débogage intensif.
 </details>
+
+## Auteur
+
+[Wallny](https://github.com/wallmage)

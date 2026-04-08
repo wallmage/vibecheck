@@ -3,6 +3,7 @@
 Output: JSON lesson plan with real numbers from user's sessions."""
 import json, sys, os, locale, subprocess
 from collections import defaultdict
+from datetime import datetime
 from model_pricing import PROVIDER_TOOL_PRICING, get_pricing, get_pricing_metadata
 
 # Subscription tiers and their actual API spending power
@@ -76,23 +77,33 @@ def find_most_expensive_day(sessions):
     cache_read = sum(s.get('total_cache_read', 0) for s in day_sessions)
     cache_create = sum(s.get('total_cache_create', 0) for s in day_sessions)
     output_tokens = sum(s.get('total_output_tokens', 0) for s in day_sessions)
-    waste = sum(sum(w['cost'] for w in s['waste'].values()) for s in day_sessions)
+    waste = sum(sum(w['cost'] for w in s.get('waste', {}).values()) for s in day_sessions)
 
-    # Estimate cost breakdown by token type
-    model = day_sessions[0].get('model', 'sonnet')
-    p = get_pricing(model, total_input_tokens=cache_read + cache_create)
-
-    cr_cost = cache_read * p.get('cache_read_price', p['input'] * p['cache_read_mult']) / 1_000_000
-    cc_cost = cache_create * p.get('cache_write_price', p['input'] * p['cache_create_mult']) / 1_000_000
-    out_cost = output_tokens * p['output'] / 1_000_000
+    # Estimate cost breakdown by token type using each session's actual model pricing.
+    cr_cost = 0
+    cc_cost = 0
+    out_cost = 0
+    models = []
+    for session in day_sessions:
+        model = session.get('model', 'sonnet')
+        models.append(model)
+        session_cache_read = session.get('total_cache_read', 0)
+        session_cache_create = session.get('total_cache_create', 0)
+        session_output_tokens = session.get('total_output_tokens', 0)
+        pricing = get_pricing(model, total_input_tokens=session_cache_read + session_cache_create)
+        cr_cost += session_cache_read * pricing.get('cache_read_price', pricing['input'] * pricing['cache_read_mult']) / 1_000_000
+        cc_cost += session_cache_create * pricing.get('cache_write_price', pricing['input'] * pricing['cache_create_mult']) / 1_000_000
+        out_cost += session_output_tokens * pricing['output'] / 1_000_000
     inp_cost = total - cr_cost - cc_cost - out_cost  # remainder = fresh input
+    unique_models = sorted(set(models))
+    model_label = unique_models[0] if len(unique_models) == 1 else 'mixed'
 
     return {
         'date': worst_date,
         'sessions': len(day_sessions),
         'total_cost': round(total, 2),
         'total_turns': turns,
-        'model': model,
+        'model': model_label,
         'cost_breakdown': {
             'cache_read': {'tokens': cache_read, 'cost': round(cr_cost, 2), 'pct': round(cr_cost/total*100, 1) if total > 0 else 0},
             'cache_create': {'tokens': cache_create, 'cost': round(cc_cost, 2), 'pct': round(cc_cost/total*100, 1) if total > 0 else 0},
@@ -107,18 +118,65 @@ def top_waste_items(sessions):
     """Get top 3 waste categories by cost."""
     waste_totals = defaultdict(float)
     for s in sessions:
-        for key, w in s['waste'].items():
+        for key, w in s.get('waste', {}).items():
             waste_totals[key] += w['cost']
     sorted_waste = sorted(waste_totals.items(), key=lambda x: -x[1])
     return sorted_waste[:3]
+
+
+def infer_period_days(summary, sessions):
+    raw_period_days = summary.get('period_days')
+    if isinstance(raw_period_days, (int, float)) and raw_period_days > 0:
+        return max(1, int(raw_period_days))
+
+    date_range = summary.get('date_range')
+    if isinstance(date_range, str) and ' to ' in date_range:
+        left, right = date_range.split(' to ', 1)
+        try:
+            start = datetime.strptime(left, '%Y-%m-%d').date()
+            end = datetime.strptime(right, '%Y-%m-%d').date()
+            return max(1, (end - start).days + 1)
+        except ValueError:
+            pass
+
+    seen_dates = set()
+    for session in sessions:
+        session_date = session.get('date')
+        if isinstance(session_date, str) and session_date:
+            seen_dates.add(session_date)
+            continue
+        timestamp = session.get('timestamp')
+        if isinstance(timestamp, str) and timestamp:
+            try:
+                seen_dates.add(datetime.fromisoformat(timestamp.replace('Z', '+00:00')).date().isoformat())
+            except ValueError:
+                pass
+    if seen_dates:
+        return max(1, len(seen_dates))
+
+    return 14
 
 def build_lesson_plan(data):
     """Build structured lesson data from analysis."""
     sessions = data.get('sessions', [])
     summary = data.get('summary', {})
-
-    if not sessions:
-        return {'error': 'No sessions to analyze'}
+    summary = {
+        'date_range': summary.get('date_range'),
+        'period_days': summary.get('period_days'),
+        'sessions': summary.get('sessions', summary.get('total_sessions', len(sessions))),
+        'total_cost': summary.get('total_cost', 0),
+        'avg_cost_per_session': summary.get('avg_cost_per_session', 0),
+        'avg_turns_per_session': summary.get('avg_turns_per_session', 0),
+        'total_waste': summary.get('total_waste', 0),
+        'waste_percentage': summary.get('waste_percentage', 0),
+        'waste_per_session': summary.get(
+            'waste_per_session',
+            (summary.get('total_waste', 0) / summary.get('sessions', summary.get('total_sessions', len(sessions))))
+            if summary.get('sessions', summary.get('total_sessions', len(sessions)))
+            else 0,
+        ),
+        'tools_scanned': summary.get('tools_scanned', 1 if data.get('tool_mix') else 0),
+    }
 
     language = detect_system_language()
     worst_day = find_most_expensive_day(sessions)
@@ -131,20 +189,21 @@ def build_lesson_plan(data):
 
     # Detect primary model family
     model_mix = data.get('model_mix', {})
-    primary_model = list(model_mix.keys())[0] if model_mix else 'sonnet'
+    pricing_metadata = data.get('pricing_metadata', {})
+    primary_model = list(model_mix.keys())[0] if model_mix else pricing_metadata.get('canonical_model', 'sonnet')
 
     # Determine provider
     pricing = get_pricing(primary_model)
-    provider = pricing.get('provider', 'unknown')
-    pricing_metadata = data.get('pricing_metadata', get_pricing_metadata(primary_model))
+    provider = pricing_metadata.get('provider') or pricing.get('provider', 'unknown')
+    pricing_metadata = pricing_metadata or get_pricing_metadata(primary_model)
     tool_mix = data.get('tool_mix', {})
     provider_mix = data.get('provider_mix', {})
 
     # Calculate daily/monthly rates
-    n_days = 14
-    daily_cost = summary['total_cost'] / n_days
+    period_days = infer_period_days(summary, sessions)
+    daily_cost = summary.get('total_cost', 0) / period_days
     monthly_cost = daily_cost * 30
-    daily_sessions = summary['sessions'] / n_days
+    daily_sessions = summary.get('sessions', 0) / period_days
 
     # Provider-specific cache explanation
     cache_explanations = {
@@ -341,10 +400,10 @@ def build_lesson_plan(data):
         },
         'subscription_tiers': SUBSCRIPTION_TIERS.get('claude' if provider == 'anthropic' else provider, {}) if provider != 'multi' else {},
         'usage_summary': {
-            'total_sessions': summary['sessions'],
-            'total_cost': summary['total_cost'],
-            'avg_cost_per_session': summary['avg_cost_per_session'],
-            'avg_turns_per_session': summary['avg_turns_per_session'],
+            'total_sessions': summary.get('sessions', 0),
+            'total_cost': summary.get('total_cost', 0),
+            'avg_cost_per_session': summary.get('avg_cost_per_session', 0),
+            'avg_turns_per_session': summary.get('avg_turns_per_session', 0),
             'daily_cost': round(daily_cost, 2),
             'monthly_projected': round(monthly_cost, 0),
             'daily_sessions': round(daily_sessions, 1),
@@ -353,9 +412,9 @@ def build_lesson_plan(data):
         'worst_day': worst_day,
         'top3_waste': [{'pattern': k, 'cost': round(v, 2)} for k, v in top3_waste],
         'waste_summary': {
-            'total_waste': summary['total_waste'],
-            'waste_pct': summary['waste_percentage'],
-            'per_session': summary['waste_per_session'],
+            'total_waste': summary.get('total_waste', 0),
+            'waste_pct': summary.get('waste_percentage', 0),
+            'per_session': summary.get('waste_per_session', 0),
         },
         'model_mix': model_mix,
         'tool_mix': tool_mix,

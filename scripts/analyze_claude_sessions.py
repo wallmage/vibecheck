@@ -671,7 +671,6 @@ def main():
         'sessions': results,
         'analysis_confidence': build_analysis_confidence(results),
     }
-    output['pricing_metadata'] = get_pricing_metadata(next(iter(output.get('model_mix', {})), results[0]['model']))
 
     for key in sorted(waste_totals, key=lambda k: -waste_totals[k]['cost']):
         w = waste_totals[key]

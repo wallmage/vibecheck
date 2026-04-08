@@ -302,11 +302,12 @@ def apply_step(payload_path, tool_id, step_rank):
     mark_step_status(payload, tool_id, step_rank, STEP_STATUS_APPLIED, applied_targets=step.get("target_files", []))
     tool = find_tool(payload.get("optimization_plan", {}), tool_id)
     result = apply_cumulative_rules(tool)
+    final_status = STEP_STATUS_APPLIED if result["applied"] else STEP_STATUS_SKIPPED
     mark_step_status(
         payload,
         tool_id,
         step_rank,
-        STEP_STATUS_APPLIED,
+        final_status,
         applied_targets=result["applied"],
         skipped_targets=result["skipped"],
     )
@@ -328,10 +329,13 @@ def apply_all_steps_for_tool(payload, tool_id):
     ensure_execution_state(payload)
     tool = find_tool(payload.get("optimization_plan", {}), tool_id)
     step_results = []
+    applied_step_ranks = []
     for step in sorted(tool.get("steps", []), key=lambda item: item.get("rank", 0)):
         if not actionable_targets_for_step(step):
+            mark_step_status(payload, tool_id, step.get("rank"), STEP_STATUS_SKIPPED, skipped_targets=step.get("target_files", []))
             continue
         mark_step_status(payload, tool_id, step.get("rank"), STEP_STATUS_APPLIED, applied_targets=step.get("target_files", []))
+        applied_step_ranks.append(step.get("rank"))
         step_results.append(
             {
                 "step_rank": step.get("rank"),
@@ -342,10 +346,22 @@ def apply_all_steps_for_tool(payload, tool_id):
         )
     tool = find_tool(payload.get("optimization_plan", {}), tool_id)
     result = apply_cumulative_rules(tool)
-    for step in applied_steps(tool):
-        step.get("execution", {})["applied_targets"] = result["applied"]
-        step.get("execution", {})["skipped_targets"] = result["skipped"]
+    final_status = STEP_STATUS_APPLIED if result["applied"] else STEP_STATUS_SKIPPED
+    for step_rank in applied_step_ranks:
+        mark_step_status(
+            payload,
+            tool_id,
+            step_rank,
+            final_status,
+            applied_targets=result["applied"],
+            skipped_targets=result["skipped"],
+        )
     ensure_execution_state(payload)
+
+    if final_status == STEP_STATUS_SKIPPED:
+        for item in step_results:
+            item["applied_targets"] = 0
+            item["skipped_targets"] = len(result["skipped"])
 
     return {
         "tool_id": tool_id,

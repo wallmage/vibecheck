@@ -359,7 +359,7 @@ def merge_entries(entries):
     total_agent_spawns = sum(a.get("summary", {}).get("total_agent_spawns", 0) for a in analyses)
     wasteful_turns_total = sum(a.get("summary", {}).get("wasteful_turns_total", 0) for a in analyses)
     context_rot_sessions = sum(a.get("summary", {}).get("context_rot_sessions", 0) for a in analyses)
-    projected_cost_after_fix = round(sum(a.get("summary", {}).get("projected_cost_after_fix", 0) for a in analyses), 2)
+    projected_cost_after_fix = round(max(0, total_cost - total_waste) / total_sessions, 2) if total_sessions else 0
 
     avg_cost_per_session = round(total_cost / total_sessions, 2) if total_sessions else 0
     avg_turns_per_session = round(total_turns / total_sessions, 1) if total_sessions else 0

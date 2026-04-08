@@ -55,7 +55,7 @@ def build_top_savings(tool):
         step for step in tool.get("steps", [])
         if step.get("execution", {}).get("status") == STEP_STATUS_APPLIED
     ]
-    if any(state in {STEP_STATUS_APPLIED, "skipped"} for state in step_states) and not steps:
+    if any(state in {STEP_STATUS_APPLIED, STEP_STATUS_SKIPPED} for state in step_states) and not steps:
         return []
     if not steps:
         steps = tool.get("steps", [])
@@ -128,7 +128,7 @@ def build_payload(tool, next_tool=None):
                 "title": step.get("title"),
             }
             for step in tool.get("steps", [])
-            if use_execution and step.get("execution", {}).get("status") == "skipped"
+            if use_execution and step.get("execution", {}).get("status") == STEP_STATUS_SKIPPED
         ],
     }
 

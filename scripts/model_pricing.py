@@ -268,18 +268,36 @@ MODEL_PATTERNS = [
 ]
 
 
+MODEL_ALIASES = {alias.strip().lower(): canonical for alias, canonical in MODEL_PATTERNS}
+
+
+def resolve_model_name(model):
+    if not isinstance(model, str) or not model.strip():
+        return 'sonnet'
+
+    current = MODEL_ALIASES.get(model.strip().lower(), model.strip())
+    seen = set()
+    while current not in seen:
+        seen.add(current)
+        alias_of = PRICING.get(current, {}).get('alias_of')
+        if not alias_of:
+            break
+        current = alias_of
+    return current
+
+
 def get_pricing(model, total_input_tokens=0):
-    if model in TIERED_PRICING:
-        base = PRICING.get(model, {})
-        for tier in TIERED_PRICING[model]:
+    resolved = resolve_model_name(model)
+    if resolved in TIERED_PRICING:
+        base = PRICING.get(resolved, {})
+        for tier in TIERED_PRICING[resolved]:
             if tier['max_input_tokens'] is None or total_input_tokens <= tier['max_input_tokens']:
                 return {**base, **tier}
-    return PRICING.get(model, PRICING['sonnet'])
+    return PRICING.get(resolved, PRICING['sonnet'])
 
 
 def canonical_model(model):
-    pricing_info = get_pricing(model)
-    return pricing_info.get('alias_of', model)
+    return resolve_model_name(model)
 
 
 def get_billing_mode(model):
@@ -291,7 +309,7 @@ def get_billing_mode(model):
 
 def get_pricing_metadata(model):
     pricing_info = get_pricing(model)
-    canonical = pricing_info.get('alias_of', model)
+    canonical = canonical_model(model)
     return {
         'registry_version': PRICING_REGISTRY_VERSION,
         'registry_label': PRICING_REGISTRY_LABEL,

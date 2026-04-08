@@ -45,7 +45,7 @@ def load_workspace_path(workspace_json):
         if isinstance(data, dict):
             folder = data.get('folder')
             if folder:
-                return folder
+                return folder.replace('file://', '')
             config = data.get('configuration')
             if config:
                 return config

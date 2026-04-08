@@ -421,17 +421,140 @@ def render_tool_success_markdown(payload):
     return "\n".join(line for line in lines if line is not None).strip() + "\n"
 
 
+def render_final_success_markdown(payload):
+    hero = payload.get("hero", {})
+    summary = payload.get("summary", {})
+    top_tool_wins = payload.get("top_tool_wins", [])
+    education_next = payload.get("education_next", {})
+
+    lines = [
+        "# VibeCheck Final Optimization Summary",
+        "",
+        "## Key Result",
+        hero.get("headline", "Optimization summary"),
+        "",
+        "## Rollup",
+        markdown_table(
+            ["Metric", "Value"],
+            [
+                ["Tools optimized", str(summary.get("tools_optimized", 0))],
+                ["Average cost before", fmt_currency(summary.get("avg_cost_before", 0))],
+                ["Average cost after", fmt_currency(summary.get("avg_cost_after", 0))],
+                ["Projected monthly savings", fmt_currency(summary.get("projected_monthly_savings", 0))],
+            ],
+        ),
+        "",
+    ]
+
+    if top_tool_wins:
+        lines.extend([
+            "## Top Tool Wins",
+            markdown_table(
+                ["Tool", "Avg before", "Avg after", "Projected monthly"],
+                [
+                    [
+                        item.get("tool_label", item.get("tool_id", "Tool")),
+                        fmt_currency(item.get("avg_cost_before", 0)),
+                        fmt_currency(item.get("avg_cost_after", 0)),
+                        fmt_currency(item.get("projected_monthly_savings", 0)),
+                    ]
+                    for item in top_tool_wins
+                ],
+            ),
+            "",
+        ])
+
+    if education_next:
+        lines.extend([
+            "## Next",
+            education_next.get("title", "Education"),
+            "",
+            education_next.get("body", ""),
+            "",
+        ])
+
+    return "\n".join(line for line in lines if line is not None).strip() + "\n"
+
+
+def render_education_markdown(payload):
+    hero = payload.get("hero", {})
+    context_window = payload.get("context_window", {})
+    session_habits = payload.get("session_habits", {})
+    continuity_system = payload.get("continuity_system", {})
+    handoff = payload.get("handoff", {})
+
+    lines = [
+        "# VibeCheck Education Summary",
+        "",
+        "## Key Result",
+        hero.get("headline", "Keep the gains"),
+        "",
+        "## Context Window",
+        context_window.get("headline", ""),
+        "",
+        context_window.get("plain", ""),
+        "",
+        "## Session Habits",
+        markdown_table(
+            ["Habit", "Guidance"],
+            [
+                ["Headline", session_habits.get("headline", "")],
+                ["Active minutes", session_habits.get("recommended_active_minutes", "")],
+                ["Turn ceiling", session_habits.get("recommended_turn_ceiling", "")],
+            ],
+        ),
+        "",
+        "## Continuity System",
+        f"- Persistent behavior: {continuity_system.get('persistent_behavior', '')}",
+        f"- Project docs: {continuity_system.get('project_docs', '')}",
+    ]
+
+    for item in continuity_system.get("project_doc_structure", []):
+        lines.append(f"- {item}")
+    lines.append("")
+
+    if handoff:
+        lines.extend([
+            "## Handoff",
+            markdown_table(
+                ["Item", "Value"],
+                [
+                    ["Recommended", "Yes" if handoff.get("recommended") else "No"],
+                    ["Purpose", handoff.get("purpose", "")],
+                    ["How to use", handoff.get("how_to_use", "")],
+                    ["Install prompt", handoff.get("install_prompt", "")],
+                    ["Repo", handoff.get("repo_url", "")],
+                ],
+            ),
+            "",
+        ])
+
+    return "\n".join(line for line in lines if line is not None).strip() + "\n"
+
+
 def default_output_path(payload):
     stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
     kind = payload.get("kind")
     if kind == "scan_result":
-        filename = f"vibecheck-scan-{stamp}.md"
+        filename = f"vibecheck-report-{stamp}.md"
     elif kind == "tool_success":
         tool_id = payload.get("tool_success", {}).get("tool_id", "tool")
         filename = f"vibecheck-{tool_id}-optimization-{stamp}.md"
+    elif kind == "optimization_final_success":
+        filename = f"vibecheck-final-summary-{stamp}.md"
+    elif kind == "optimization_education":
+        filename = f"vibecheck-education-{stamp}.md"
     else:
         fail(f"unsupported payload kind for markdown export: {kind}")
     return str(Path.cwd() / filename)
+
+
+def save_markdown_payload(payload, output_path=None):
+    path = Path(output_path or default_output_path(payload))
+    markdown = render_markdown(payload)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text(markdown)
+    return path
 
 
 def render_markdown(payload):
@@ -440,6 +563,10 @@ def render_markdown(payload):
         return render_scan_markdown(payload)
     if kind == "tool_success":
         return render_tool_success_markdown(payload)
+    if kind == "optimization_final_success":
+        return render_final_success_markdown(payload)
+    if kind == "optimization_education":
+        return render_education_markdown(payload)
     fail(f"unsupported payload kind for markdown export: {kind}")
 
 
@@ -449,11 +576,8 @@ def main():
         sys.exit(1)
 
     payload = load_json(sys.argv[1])
-    output_path = sys.argv[2] if len(sys.argv) == 3 else default_output_path(payload)
-    markdown = render_markdown(payload)
-    path = Path(output_path)
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(markdown)
+    output_path = sys.argv[2] if len(sys.argv) == 3 else None
+    path = save_markdown_payload(payload, output_path)
     print(json.dumps({"path": str(path), "kind": payload.get("kind")}, indent=2))
 
 

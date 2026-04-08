@@ -3,7 +3,7 @@
 
 Handles sandboxed environments (Cowork, VMs, containers) by checking
 fallback locations and returning platform-specific setup instructions."""
-import os, sys, platform, glob, json
+import os, sys, platform, json
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 

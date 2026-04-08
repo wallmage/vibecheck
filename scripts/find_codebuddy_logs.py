@@ -13,6 +13,10 @@ APP_NAME = 'CodeBuddy'
 TOOL_ID = 'codebuddy'
 
 
+def has_session_index(root_dir):
+    return (root_dir / 'codebuddy-sessions.vscdb').exists()
+
+
 def detect_platform():
     system = platform.system()
     if system == 'Darwin':
@@ -25,25 +29,37 @@ def detect_platform():
 def default_app_root():
     home = Path.home()
     if platform.system() == 'Darwin':
-        return home / 'Library' / 'Application Support' / APP_NAME
-    if platform.system() == 'Windows':
+        candidates = [home / 'Library' / 'Application Support' / APP_NAME, home / '.codebuddy']
+    elif platform.system() == 'Windows':
         appdata = os.environ.get('APPDATA')
-        return Path(appdata) / APP_NAME if appdata else home / 'AppData' / 'Roaming' / APP_NAME
-    if (home / '.codebuddy').exists():
-        return home / '.codebuddy'
-    return home / '.config' / APP_NAME
+        candidates = [Path(appdata) / APP_NAME if appdata else home / 'AppData' / 'Roaming' / APP_NAME, home / '.codebuddy']
+    else:
+        candidates = [home / '.config' / APP_NAME, home / '.codebuddy']
+
+    for candidate in candidates:
+        if has_session_index(candidate):
+            return candidate
+    for candidate in candidates:
+        if candidate.exists():
+            return candidate
+    return candidates[0]
 
 
 def find_fallback_dirs():
     home = Path.home()
     names = ['vibecheck-logs', f'{TOOL_ID}-logs']
     parents = [home, home / 'Desktop', home / 'Documents', home / 'Developer']
+    fallback_match = None
     for parent in parents:
         for name in names:
             candidate = parent / name
-            if candidate.exists() and any(candidate.rglob('*.vscdb')):
+            if not candidate.exists():
+                continue
+            if has_session_index(candidate):
                 return candidate
-    return None
+            if fallback_match is None and any(candidate.rglob('*.vscdb')):
+                fallback_match = candidate
+    return fallback_match
 
 
 def open_db(path):

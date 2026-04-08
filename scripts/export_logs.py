@@ -14,6 +14,18 @@ import shutil, sys, os, platform
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 
+
+def has_buddy_session_data(candidate, index_name, log_names):
+    if (candidate / index_name).exists():
+        return True
+    logs_dir = candidate / 'logs'
+    if not logs_dir.exists():
+        return False
+    for log_name in log_names:
+        if any(logs_dir.rglob(log_name)):
+            return True
+    return False
+
 def find_source(requested_tool=None):
     """Find where session logs live."""
     home = Path.home()
@@ -108,20 +120,28 @@ def find_source(requested_tool=None):
             return qoder, 'Qoder'
 
     if requested_tool in (None, 'codebuddy'):
-        for candidate in [
+        candidates = [
             home / 'Library' / 'Application Support' / 'CodeBuddy',
             home / '.codebuddy',
             home / '.config' / 'CodeBuddy',
-        ]:
+        ]
+        for candidate in candidates:
+            if candidate.exists() and has_buddy_session_data(candidate, 'codebuddy-sessions.vscdb', ('codebuddy.log',)):
+                return candidate, 'CodeBuddy'
+        for candidate in candidates:
             if candidate.exists():
                 return candidate, 'CodeBuddy'
 
     if requested_tool in (None, 'workbuddy'):
-        for candidate in [
+        candidates = [
             home / 'Library' / 'Application Support' / 'WorkBuddy',
             home / '.workbuddy',
             home / '.config' / 'WorkBuddy',
-        ]:
+        ]
+        for candidate in candidates:
+            if candidate.exists() and has_buddy_session_data(candidate, 'workbuddy-sessions.vscdb', ('workbuddy.log',)):
+                return candidate, 'WorkBuddy'
+        for candidate in candidates:
             if candidate.exists():
                 return candidate, 'WorkBuddy'
 
@@ -438,13 +458,13 @@ def export(days=14, dest=None, tool=None):
     if tool == 'workbuddy' or tool_name == 'WorkBuddy':
         copied = 0
         total_size = 0
-        for rel_path in [Path('codebuddy-sessions.vscdb'), Path('logs'), Path('User') / 'workspaceStorage', Path('User') / 'globalStorage' / 'state.vscdb']:
+        for rel_path in [Path('workbuddy-sessions.vscdb'), Path('logs'), Path('User') / 'workspaceStorage', Path('User') / 'globalStorage' / 'state.vscdb']:
             source = src / rel_path
             if source.is_dir():
                 for f in source.rglob('*'):
                     if not f.is_file():
                         continue
-                    if f.name not in ('codebuddy.log', 'state.vscdb', 'workspace.json'):
+                    if f.name not in ('workbuddy.log', 'state.vscdb', 'workspace.json'):
                         continue
                     mtime = datetime.fromtimestamp(f.stat().st_mtime, tz=timezone.utc)
                     if mtime < cutoff and f.name not in ('state.vscdb', 'workspace.json'):

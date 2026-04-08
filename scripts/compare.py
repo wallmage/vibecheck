@@ -33,20 +33,24 @@ def find_latest_snapshot():
 
 def save_snapshot(analysis):
     """Save current analysis as a persistent snapshot."""
-    SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
-    ts = datetime.now().strftime('%Y%m%d_%H%M%S')
-    path = SNAPSHOT_DIR / f'snapshot_{ts}.json'
-    snapshot = {
-        'timestamp': datetime.now(timezone.utc).isoformat(),
-        'summary': analysis['summary'],
-        'waste_breakdown': analysis.get('waste_breakdown', {}),
-        'model_mix': analysis.get('model_mix', {}),
-        'per_project': analysis.get('per_project', {}),
-        'platform_mix': analysis.get('platform_mix', {}),
-    }
-    with open(path, 'w') as f:
-        json.dump(snapshot, f, indent=2)
-    return path
+    try:
+        SNAPSHOT_DIR.mkdir(parents=True, exist_ok=True)
+        ts = datetime.now().strftime('%Y%m%d_%H%M%S')
+        path = SNAPSHOT_DIR / f'snapshot_{ts}.json'
+        snapshot = {
+            'schema_version': 1,
+            'timestamp': datetime.now(timezone.utc).isoformat(),
+            'summary': analysis.get('summary', {}),
+            'waste_breakdown': analysis.get('waste_breakdown', {}),
+            'model_mix': analysis.get('model_mix', {}),
+            'per_project': analysis.get('per_project', {}),
+            'platform_mix': analysis.get('platform_mix', {}),
+        }
+        with open(path, 'w') as f:
+            json.dump(snapshot, f, indent=2)
+        return path
+    except OSError:
+        return None
 
 def fmt_tokens(n):
     """Format token count as human-readable."""
@@ -55,6 +59,93 @@ def fmt_tokens(n):
     if n >= 1_000:
         return f"{n / 1_000:.1f}K"
     return str(n)
+
+
+def infer_period_days(summary):
+    summary = summary or {}
+
+    raw_period_days = summary.get('period_days')
+    if isinstance(raw_period_days, (int, float)) and raw_period_days > 0:
+        return max(1, int(raw_period_days))
+
+    date_range = summary.get('date_range')
+    if isinstance(date_range, str) and ' to ' in date_range:
+        left, right = date_range.split(' to ', 1)
+        try:
+            start = datetime.strptime(left, '%Y-%m-%d').date()
+            end = datetime.strptime(right, '%Y-%m-%d').date()
+            return max(1, (end - start).days + 1)
+        except ValueError:
+            pass
+
+    return 14
+
+
+def summary_defaults(summary):
+    summary = summary or {}
+    sessions = summary.get('sessions', summary.get('total_sessions', 0))
+    return {
+        'date_range': summary.get('date_range') or 'unavailable',
+        'period_days': infer_period_days(summary),
+        'sessions': sessions,
+        'avg_turns_per_session': summary.get('avg_turns_per_session', 0),
+        'avg_agent_spawns_per_session': summary.get('avg_agent_spawns_per_session', 0),
+        'avg_context_window_tokens': summary.get('avg_context_window_tokens', 0),
+        'avg_output_tokens_per_turn': summary.get('avg_output_tokens_per_turn', 0),
+        'wasteful_turns_pct': summary.get('wasteful_turns_pct', 0),
+        'wasteful_turns_total': summary.get('wasteful_turns_total', 0),
+        'total_turns': summary.get('total_turns', 0),
+        'context_rot_sessions': summary.get('context_rot_sessions', 0),
+        'context_rot_pct': summary.get('context_rot_pct', 0),
+        'total_cost': summary.get('total_cost', 0),
+        'avg_cost_per_session': summary.get('avg_cost_per_session', 0),
+        'avg_cost_per_turn': summary.get('avg_cost_per_turn', 0),
+        'total_waste': summary.get('total_waste', 0),
+        'waste_percentage': summary.get('waste_percentage', 0),
+        'waste_per_session': summary.get(
+            'waste_per_session',
+            (summary.get('total_waste', 0) / sessions) if sessions else 0,
+        ),
+        'projected_cost_after_fix': summary.get('projected_cost_after_fix', summary.get('avg_cost_per_session', 0)),
+    }
+
+
+def has_meaningful_baseline(summary):
+    summary = summary or {}
+    sessions = summary.get('sessions', summary.get('total_sessions', 0))
+    numeric_signals = (
+        summary.get('total_cost', 0),
+        summary.get('avg_cost_per_session', 0),
+        summary.get('avg_turns_per_session', 0),
+        summary.get('total_turns', 0),
+        summary.get('total_waste', 0),
+    )
+    return sessions > 0 or any(value > 0 for value in numeric_signals)
+
+
+def normalize_waste_item(info, sessions, total_waste):
+    info = info or {}
+    per_session = info.get('per_session')
+    total_cost = info.get('total_cost')
+
+    if per_session is None and total_cost is not None and sessions > 0:
+        per_session = total_cost / sessions
+    if total_cost is None and per_session is not None:
+        total_cost = per_session * sessions
+
+    total_cost = total_cost or 0
+    if per_session is None:
+        per_session = (total_cost / sessions) if sessions > 0 else 0
+
+    percentage = info.get('percentage_of_waste')
+    if percentage is None:
+        percentage = (total_cost / total_waste * 100) if total_waste > 0 else 0
+
+    return {
+        'total_cost': total_cost,
+        'per_session': per_session,
+        'percentage_of_waste': percentage,
+    }
 
 def main():
     if len(sys.argv) < 2:
@@ -75,7 +166,10 @@ def main():
         if prev_path:
             previous = load_json(prev_path)
 
-    cs = current['summary']
+    if previous and not has_meaningful_baseline(previous.get('summary')):
+        previous = None
+
+    cs = summary_defaults(current.get('summary'))
     wb = current.get('waste_breakdown', {})
 
     # ========================================
@@ -113,7 +207,8 @@ def main():
         print("  TOP WASTE PATTERNS")
         print("  " + "-" * 50)
         for k, v in top5:
-            print(f"  {k:25s}  ${v['total_cost']:>7.2f}  ({v['percentage_of_waste']:.0f}%)")
+            item = normalize_waste_item(v, cs['sessions'], cs['total_waste'])
+            print(f"  {k:25s}  ${item['total_cost']:>7.2f}  ({item['percentage_of_waste']:.0f}%)")
         print()
 
     # Per-model breakdown
@@ -142,7 +237,7 @@ def main():
     # BEFORE / AFTER
     # ========================================
     if previous:
-        ps = previous['summary']
+        ps = summary_defaults(previous.get('summary'))
 
         print("=" * 70)
         print("BEFORE / AFTER COMPARISON")
@@ -186,8 +281,8 @@ def main():
         print()
         print("  Operational:")
         row('Avg turns/session',
-            ps['avg_turns_per_session'],
-            cs['avg_turns_per_session'], '#')
+            ps.get('avg_turns_per_session', 0),
+            cs.get('avg_turns_per_session', 0), '#')
         row('Avg sub-agents/session',
             ps.get('avg_agent_spawns_per_session', 0),
             cs.get('avg_agent_spawns_per_session', 0), '#')
@@ -208,17 +303,17 @@ def main():
         print()
         print("  Cost:")
         row('Avg cost/session',
-            ps['avg_cost_per_session'],
-            cs['avg_cost_per_session'])
+            ps.get('avg_cost_per_session', 0),
+            cs.get('avg_cost_per_session', 0))
         row('Avg cost/turn',
             ps.get('avg_cost_per_turn', 0),
             cs.get('avg_cost_per_turn', 0))
         row('Waste %',
-            ps['waste_percentage'],
-            cs['waste_percentage'], '%')
+            ps.get('waste_percentage', 0),
+            cs.get('waste_percentage', 0), '%')
         row('Waste/session',
-            ps['waste_per_session'],
-            cs['waste_per_session'])
+            ps.get('waste_per_session', 0),
+            cs.get('waste_per_session', 0))
 
         # Per-pattern comparison
         print()
@@ -240,7 +335,7 @@ def main():
 
         # Bottom line
         actual_savings = ps['avg_cost_per_session'] - cs['avg_cost_per_session']
-        daily_sessions = cs['sessions'] / 14
+        daily_sessions = cs['sessions'] / cs['period_days'] if cs['period_days'] > 0 else 0
         print("=" * 70)
         if actual_savings > 0.01:
             pct = actual_savings / ps['avg_cost_per_session'] * 100
@@ -274,7 +369,7 @@ def main():
 
         projected_cost = cs['projected_cost_after_fix']
         savings_per_session = cs['avg_cost_per_session'] - projected_cost
-        daily_sessions = cs['sessions'] / 14
+        daily_sessions = cs['sessions'] / cs['period_days'] if cs['period_days'] > 0 else 0
         monthly_current = cs['avg_cost_per_session'] * daily_sessions * 30
         monthly_after = projected_cost * daily_sessions * 30
         monthly_savings = monthly_current - monthly_after
@@ -284,6 +379,11 @@ def main():
         projected_turns = cs['avg_turns_per_session'] * (1 - waste_pct * 0.6)  # ~60% of waste turns eliminated
         projected_wasteful = cs.get('wasteful_turns_pct', 0) * 0.2  # target: 80% reduction
         projected_context = cs.get('avg_context_window_tokens', 0) * (1 - waste_pct * 0.4)  # fewer turns = smaller window
+        context_base = cs.get('avg_context_window_tokens', 0)
+        if context_base > 0:
+            context_change = f"{-(1 - projected_context / context_base) * 100:.0f}%"
+        else:
+            context_change = "0%"
 
         fmt_row = "  {:<28} {:>14} {:>14} {:>14}"
         print(fmt_row.format('', 'NOW', 'PROJECTED', 'SAVINGS'))
@@ -298,7 +398,7 @@ def main():
         print(fmt_row.format('Avg context window',
               fmt_tokens(cs.get('avg_context_window_tokens', 0)),
               fmt_tokens(int(projected_context)),
-              f"{-(1 - projected_context / cs.get('avg_context_window_tokens', 1)) * 100:.0f}%"))
+              context_change))
         print(fmt_row.format('Wasteful turns',
               f"{cs.get('wasteful_turns_pct', 0):.1f}%",
               f"{projected_wasteful:.1f}%",
@@ -329,10 +429,13 @@ def main():
 
     # Save persistent snapshot
     snapshot_path = save_snapshot(current)
-    print(f"  Snapshot saved: {snapshot_path}")
+    if snapshot_path:
+        print(f"  Snapshot saved: {snapshot_path}")
+    else:
+        print("  Snapshot saved: unavailable in this environment")
 
     # Also list history
-    if SNAPSHOT_DIR.exists():
+    if snapshot_path and SNAPSHOT_DIR.exists():
         all_snaps = sorted(SNAPSHOT_DIR.glob('snapshot_*.json'))
         if len(all_snaps) > 1:
             print(f"  History: {len(all_snaps)} snapshots in {SNAPSHOT_DIR}")

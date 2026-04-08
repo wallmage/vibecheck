@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from analyze_sessions import MODEL_PATTERNS, PLATFORM_SIGNALS
-from model_pricing import get_pricing
+from model_pricing import get_pricing, get_pricing_metadata
 
 
 LIKELY_SESSION_KEY_TERMS = (
@@ -666,6 +666,13 @@ def aggregate_results(results):
         'avg_per_session': round(total_sleep_polls / n, 1),
         'estimated_cost': round(total_sleep_polls * 0.03, 2),
     }
+    primary_model = next(iter(output['model_mix']), results[0]['model'])
+    output['analysis_confidence'] = {
+        'score': 0.45,
+        'label': 'estimated',
+        'reason': 'Qoder analysis reconstructs token counts from SQLite chat payloads; no billing-grade usage data is available.',
+    }
+    output['pricing_metadata'] = get_pricing_metadata(primary_model)
     return output
 
 

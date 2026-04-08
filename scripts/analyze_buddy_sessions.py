@@ -8,7 +8,7 @@ from datetime import datetime
 from pathlib import Path
 
 from analyze_sessions import MODEL_PATTERNS, PLATFORM_SIGNALS
-from model_pricing import get_pricing
+from model_pricing import get_pricing, get_pricing_metadata
 
 
 RUN_MAP_RE = re.compile(r"Reporting session created for (?P<run>run-[^:]+(?::\d+)?): conversationId=(?P<session>[a-f0-9]+)")
@@ -18,6 +18,7 @@ SUCCESS_RE = re.compile(r"Sub-run (?P<run>run-[^:]+(?::\d+)?) completed successf
 FAIL_RE = re.compile(r"Sub-run (?P<run>run-[^:]+(?::\d+)?) failed: (?P<error>.+)")
 CLAW_RE = re.compile(r"claw session upsert: (?P<session>[a-f0-9]+)")
 TS_RE = re.compile(r"^(?P<date>\d{4}-\d{2}-\d{2}) (?P<time>\d{2}:\d{2}:\d{2}\.\d+)")
+BUDDY_LOG_NAMES = {"codebuddy.log", "workbuddy.log"}
 
 
 def normalize_model(model):
@@ -65,7 +66,13 @@ def parse_logs(logs_dir):
     if not logs_dir or not Path(logs_dir).exists():
         return per_session
 
-    for log_path in sorted(Path(logs_dir).glob('*/codebuddy.log')):
+    log_paths = sorted(
+        path
+        for path in Path(logs_dir).rglob("*")
+        if path.is_file() and path.name in BUDDY_LOG_NAMES
+    )
+
+    for log_path in log_paths:
         try:
             with open(log_path) as handle:
                 for line in handle:
@@ -268,6 +275,13 @@ def aggregate(results):
     }
     out['reviewer_roi'] = {}
     out['polling_summary'] = {'total_sleep_poll_turns': 0, 'avg_per_session': 0, 'estimated_cost': 0}
+    primary_model = next(iter(out['model_mix']), results[0]['model'])
+    out['analysis_confidence'] = {
+        'score': 0.45,
+        'label': 'estimated',
+        'reason': 'CodeBuddy analysis reconstructs token counts from runtime logs; no billing-grade usage data is available.',
+    }
+    out['pricing_metadata'] = get_pricing_metadata(primary_model)
     return out
 
 

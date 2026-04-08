@@ -1,10 +1,85 @@
 #!/usr/bin/env python3
 """Generate a human-readable cost optimization report from analysis JSON."""
 import json, sys, os, subprocess
+from datetime import datetime
 from pathlib import Path
+
+from export_optimization_log import save_markdown_payload
+from present_scan import build_payload
 
 def fmt(amount):
     return f"${amount:.2f}" if amount >= 1 else f"${amount:.3f}"
+
+
+DEFAULT_ANALYSIS_CONFIDENCE = {
+    'label': 'estimated',
+    'score': 0.5,
+    'reason': 'Confidence metadata was not included in this analysis.',
+}
+
+
+def infer_period_days(summary):
+    raw_period_days = summary.get('period_days')
+    if isinstance(raw_period_days, (int, float)) and raw_period_days > 0:
+        return max(1, int(raw_period_days))
+
+    date_range = summary.get('date_range')
+    if isinstance(date_range, str) and ' to ' in date_range:
+        left, right = date_range.split(' to ', 1)
+        try:
+            start = datetime.strptime(left, '%Y-%m-%d').date()
+            end = datetime.strptime(right, '%Y-%m-%d').date()
+            return max(1, (end - start).days + 1)
+        except ValueError:
+            pass
+
+    return 14
+
+
+def derive_waste_per_session(summary):
+    waste_per_session = summary.get('waste_per_session')
+    if waste_per_session is not None:
+        return waste_per_session
+
+    sessions = summary.get('sessions', summary.get('total_sessions', 0))
+    if sessions > 0:
+        return summary.get('total_waste', 0) / sessions
+    return 0
+
+
+def normalize_analysis_confidence(info):
+    merged = dict(DEFAULT_ANALYSIS_CONFIDENCE)
+    if isinstance(info, dict):
+        for key, value in info.items():
+            if value is not None:
+                merged[key] = value
+    return merged
+
+
+def normalize_waste_item(info, sessions_count, total_waste):
+    info = info or {}
+    per_session = info.get('per_session')
+    total_cost = info.get('total_cost')
+
+    if per_session is None and total_cost is not None and sessions_count > 0:
+        per_session = total_cost / sessions_count
+    if total_cost is None and per_session is not None:
+        total_cost = per_session * sessions_count
+
+    total_cost = total_cost or 0
+    if per_session is None:
+        per_session = (total_cost / sessions_count) if sessions_count > 0 else 0
+
+    percentage = info.get('percentage_of_waste')
+    if percentage is None:
+        percentage = (total_cost / total_waste * 100) if total_waste > 0 else 0
+
+    return {
+        'description': info.get('description') or 'No description available in this analysis.',
+        'per_session': per_session,
+        'total_cost': total_cost,
+        'percentage_of_waste': percentage,
+    }
 
 def main():
     if len(sys.argv) < 2:
@@ -32,25 +107,24 @@ def main():
     instruction_file_path = sys.argv[2] if len(sys.argv) > 2 else None
     instruction_file_name = Path(instruction_file_path).name if instruction_file_path else "instruction file"
 
-    s = data['summary']
-    w = data['waste_breakdown']
-    analysis_confidence = data.get('analysis_confidence', {
-        'label': 'estimated',
-        'score': 0.5,
-        'reason': 'Confidence metadata was not included in this analysis.',
-    })
+    s = data.get('summary', {})
+    w = data.get('waste_breakdown', {})
+    analysis_confidence = normalize_analysis_confidence(data.get('analysis_confidence'))
     pricing_metadata = data.get('pricing_metadata', {})
+    sessions_count = s.get('sessions', s.get('total_sessions', 0))
+    period_days = infer_period_days(s)
+    waste_per_session = derive_waste_per_session(s)
 
     print("=" * 70)
     print("VIBECHECK COST OPTIMIZATION REPORT")
     print("=" * 70)
     print()
-    print(f"  Period:              {s['date_range']}")
-    print(f"  Sessions analyzed:   {s['sessions']}")
-    print(f"  Total spend:         ${s['total_cost']:.2f}")
-    print(f"  Avg cost/session:    ${s['avg_cost_per_session']:.2f}")
-    print(f"  Avg turns/session:   {s['avg_turns_per_session']:.1f}")
-    print(f"  Avg cost/turn:       ${s['avg_cost_per_turn']:.4f}")
+    print(f"  Period:              {s.get('date_range') or 'unavailable'}")
+    print(f"  Sessions analyzed:   {sessions_count}")
+    print(f"  Total spend:         ${s.get('total_cost', 0):.2f}")
+    print(f"  Avg cost/session:    ${s.get('avg_cost_per_session', 0):.2f}")
+    print(f"  Avg turns/session:   {s.get('avg_turns_per_session', 0):.1f}")
+    print(f"  Avg cost/turn:       ${s.get('avg_cost_per_turn', 0):.4f}")
     print(f"  Confidence:          {analysis_confidence['label']} ({analysis_confidence.get('score', 0):.2f})")
     if pricing_metadata:
         print(f"  Pricing registry:    {pricing_metadata.get('registry_label', 'unknown')}")
@@ -187,7 +261,6 @@ def main():
             filename = target.get('filename') or Path(target.get('file', '')).name
             tool_name = target.get('tool_name', target.get('tool'))
             print(f"  - {tool_name}: {filename} [{kind}, {scope}, {priority}, {action}]")
-            print(f"    {target.get('file')}")
         print()
 
     optimization_plan = data.get('optimization_plan', {})
@@ -288,14 +361,15 @@ def main():
 
     fixes = []
     for key, info in w.items():
-        if info['total_cost'] < 0.01:
+        item = normalize_waste_item(info, sessions_count, s.get('total_waste', 0))
+        if item['total_cost'] < 0.01:
             continue
         risk = "SAFE" if key in ('idle_narration', 'chainable_bash', 'toolsearch', 'git_ceremony',
                                     'sleep_poll_loops', 'verbose_output', 'context_rot') else "REVIEW"
-        fixes.append((key, info, risk))
+        fixes.append((key, item, risk))
         print(f"  {key}:")
-        print(f"    {info['description']}")
-        print(f"    Cost: {fmt(info['per_session'])}/session ({info['percentage_of_waste']:.0f}% of waste)")
+        print(f"    {item['description']}")
+        print(f"    Cost: {fmt(item['per_session'])}/session ({item['percentage_of_waste']:.0f}% of waste)")
         print(f"    Risk: {risk}")
         print()
 
@@ -304,17 +378,16 @@ def main():
     print("SAVINGS PROJECTION")
     print("-" * 70)
     print()
-    print(f"  Current avg:         ${s['avg_cost_per_session']:.2f}/session")
-    print(f"  Total waste:         {fmt(s['waste_per_session'])}/session ({s['waste_percentage']:.0f}% of spend)")
-    print(f"  After optimization:  ${s['projected_cost_after_fix']:.2f}/session")
-    print(f"  Savings:             {s['waste_percentage']:.0f}%")
+    print(f"  Current avg:         ${s.get('avg_cost_per_session', 0):.2f}/session")
+    print(f"  Total waste:         {fmt(waste_per_session)}/session ({s.get('waste_percentage', 0):.0f}% of spend)")
+    print(f"  After optimization:  ${s.get('projected_cost_after_fix', 0):.2f}/session")
+    print(f"  Savings:             {s.get('waste_percentage', 0):.0f}%")
     print()
 
-    if s['sessions'] > 0:
-        days_in_range = 14
-        daily = s['sessions'] / days_in_range
-        monthly_current = s['avg_cost_per_session'] * daily * 30
-        monthly_after = s['projected_cost_after_fix'] * daily * 30
+    if sessions_count > 0:
+        daily = sessions_count / period_days
+        monthly_current = s.get('avg_cost_per_session', 0) * daily * 30
+        monthly_after = s.get('projected_cost_after_fix', 0) * daily * 30
         print(f"  At your pace ({daily:.1f} sessions/day):")
         print(f"    Current monthly:   ${monthly_current:.0f}")
         print(f"    After fix:         ${monthly_after:.0f}")
@@ -482,7 +555,7 @@ def main():
         chars = len(content)
         words = len(content.split())
         tokens_est = chars // 4
-        avg_turns = s['avg_turns_per_session']
+        avg_turns = s.get('avg_turns_per_session', 0)
         # Context tax: tokens * turns * cache_read_price
         tax_per_session = tokens_est * avg_turns * 0.3 / 1_000_000
 
@@ -516,6 +589,13 @@ def main():
         else:
             print("  Pass the instruction file path as the second argument for compression analysis.")
     print()
+
+    try:
+        scan_payload = build_payload(data, instruction_file_path)
+        saved_path = save_markdown_payload(scan_payload)
+        print(f"  Saved report:       {saved_path}")
+    except OSError as exc:
+        print(f"  Saved report:       unavailable ({exc})")
 
 if __name__ == "__main__":
     main()

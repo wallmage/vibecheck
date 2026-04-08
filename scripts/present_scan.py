@@ -161,7 +161,8 @@ def build_next_action(top_patterns, instruction_file_name, optimization_plan=Non
     entry_tool_id = (optimization_plan or {}).get("entry_tool_id")
     tools = {tool.get("tool_id"): tool for tool in (optimization_plan or {}).get("tools", [])}
     entry_tool = tools.get(entry_tool_id)
-    first_step = entry_tool.get("steps", [None])[0] if entry_tool else None
+    entry_steps = entry_tool.get("steps", []) if entry_tool else []
+    first_step = entry_steps[0] if entry_steps else None
     if entry_tool_id and first_step:
         result["command"] = f"python3 SKILL_DIR/scripts/present_next_workflow_item.py /tmp/vibecheck_result.json {entry_tool_id}"
         result["workflow"] = {
@@ -169,6 +170,20 @@ def build_next_action(top_patterns, instruction_file_name, optimization_plan=Non
             "step_rank": first_step.get("rank"),
         }
     return result
+
+
+def build_header_actions():
+    stamp = datetime.now().strftime("%Y%m%d-%H%M%S")
+    return [
+        {
+            "id": "save_report",
+            "label": "Save Report",
+            "kind": "save_report",
+            "placement": "result_header",
+            "command": "python3 SKILL_DIR/scripts/export_optimization_log.py /tmp/vibecheck_result.json",
+            "default_filename": f"vibecheck-report-{stamp}.md",
+        }
+    ]
 
 
 def build_empty_state(instruction_file_name):
@@ -214,6 +229,7 @@ def build_empty_state(instruction_file_name):
         },
         "summary_metrics": summary_metrics,
         "top_waste_patterns": [],
+        "header_actions": build_header_actions(),
         "next_action": next_action,
         "sections": [
             {"id": "hero", "kind": EMPTY_RESULT_SECTION_KINDS[0]},
@@ -224,7 +240,7 @@ def build_empty_state(instruction_file_name):
     }
 
 
-def build_detected_tool_inventory(data):
+def build_detected_tool_inventory(data, normalized_optimization_targets=None):
     tool_inventory = data.get("tool_inventory")
     if tool_inventory:
         return tool_inventory
@@ -235,7 +251,7 @@ def build_detected_tool_inventory(data):
     skipped_tools = {item.get("tool_id"): item for item in data.get("skipped_tools", []) if item.get("tool_id")}
     failed_tools = {item.get("tool_id"): item for item in data.get("failed_tools", []) if item.get("tool_id")}
     instruction_targets = data.get("instruction_targets", [])
-    optimization_targets = data.get("optimization_targets", instruction_targets)
+    optimization_targets = normalized_optimization_targets if normalized_optimization_targets is not None else data.get("optimization_targets", instruction_targets)
 
     instruction_counts = {}
     for target in instruction_targets:
@@ -247,7 +263,17 @@ def build_detected_tool_inventory(data):
     for target in optimization_targets:
         tool_id = target.get("tool")
         if tool_id:
-            optimization_counts[tool_id] = optimization_counts.get(tool_id, 0) + 1
+            optimization_counts[tool_id] = optimization_counts.get(tool_id, 0) + len(
+                actionable_targets(
+                    [
+                        {
+                            "kind": target.get("kind", "instruction_file"),
+                            "path": target.get("file") or target.get("path"),
+                            "exists": target.get("exists", True),
+                        }
+                    ]
+                )
+            )
 
     ordered_ids = []
     for tool in installed_tools:
@@ -333,7 +359,14 @@ def build_optimization_targets(data, instruction_file_path=None, detected_tools=
                 "source": target.get("source", "project_instruction"),
             }
         )
-    if output or not instruction_file_path:
+    if not instruction_file_path:
+        return output
+
+    actionable_instruction_targets = [
+        item for item in output
+        if item.get("kind") == "instruction_file" and item.get("exists") is not False
+    ]
+    if actionable_instruction_targets:
         return output
 
     tool_mix = data.get("tool_mix", {})
@@ -351,20 +384,22 @@ def build_optimization_targets(data, instruction_file_path=None, detected_tools=
 
     if candidate_tool_id:
         path = str(instruction_file_path)
-        output.append(
-            {
-                "tool": candidate_tool_id,
-                "label": candidate_label or candidate_tool_id,
-                "path": path,
-                "filename": Path(path).name,
-                "kind": "instruction_file",
-                "scope": "project",
-                "exists": Path(path).exists(),
-                "action": "update",
-                "priority_band": "fallback",
-                "source": "present_scan_fallback",
-            }
-        )
+        known_paths = {item.get("path") for item in output}
+        if path not in known_paths:
+            output.append(
+                {
+                    "tool": candidate_tool_id,
+                    "label": candidate_label or candidate_tool_id,
+                    "path": path,
+                    "filename": Path(path).name,
+                    "kind": "instruction_file",
+                    "scope": "project",
+                    "exists": Path(path).exists(),
+                    "action": "update",
+                    "priority_band": "fallback",
+                    "source": "present_scan_fallback",
+                }
+            )
     return output
 
 
@@ -413,9 +448,9 @@ def parse_iso_timestamp(value):
 
 
 def infer_period_days(summary, sessions):
-    seen_dates = sorted({session.get("date") for session in sessions if session.get("date")})
-    if seen_dates:
-        return max(1, len(seen_dates))
+    raw_period_days = summary.get("period_days")
+    if isinstance(raw_period_days, (int, float)) and raw_period_days > 0:
+        return max(1, int(raw_period_days))
 
     date_range = summary.get("date_range")
     if isinstance(date_range, str) and " to " in date_range:
@@ -425,8 +460,21 @@ def infer_period_days(summary, sessions):
             end = datetime.strptime(right, "%Y-%m-%d").date()
             return max(1, (end - start).days + 1)
         except ValueError:
-            return 1
-    return 1
+            pass
+
+    seen_dates = {
+        session.get("date")
+        for session in sessions
+        if isinstance(session.get("date"), str) and session.get("date")
+    }
+    for session in sessions:
+        timestamp = parse_iso_timestamp(session.get("timestamp"))
+        if timestamp:
+            seen_dates.add(timestamp.date().isoformat())
+    if seen_dates:
+        return max(1, len(seen_dates))
+
+    return 14
 
 
 def monthly_savings_from_total(total_cost, period_days):
@@ -533,7 +581,8 @@ def tool_session_filter(session, tool_id, single_tool_id=None):
 def build_header_statistics(summary, detected_tools, sessions, model_mix, top_patterns):
     period_days = infer_period_days(summary, sessions)
     ranked_tools = build_tool_ranked_list([dict(item) for item in detected_tools])
-    single_tool_id = ranked_tools[0]["id"] if len([item for item in ranked_tools if item.get("sessions", 0) > 0]) == 1 else None
+    tools_with_sessions = [item for item in ranked_tools if item.get("sessions", 0) > 0]
+    single_tool_id = tools_with_sessions[0]["id"] if len(tools_with_sessions) == 1 else None
     overall_areas = []
     for item in top_patterns:
         overall_areas.append(
@@ -553,9 +602,17 @@ def build_header_statistics(summary, detected_tools, sessions, model_mix, top_pa
         tool_id = item["id"]
         tool_sessions = [session for session in sessions if tool_session_filter(session, tool_id, single_tool_id)]
         tool_session_count = len(tool_sessions)
-        avg_cost = round(sum(session.get("total_cost", 0) for session in tool_sessions) / tool_session_count, 2) if tool_session_count else 0
+        tool_total_cost = sum(session.get("total_cost", 0) for session in tool_sessions)
+        avg_cost = round(tool_total_cost / tool_session_count, 2) if tool_session_count else 0
         pattern_totals, descriptions = aggregate_pattern_totals(tool_sessions)
-        waste_ratio_pct = round(item.get("waste_pct", 0), 1) if item.get("sessions", 0) else round(min(100.0, sum(pattern_totals.values()) / sum(session.get("total_cost", 0) for session in tool_sessions) * 100), 1) if tool_session_count and sum(session.get("total_cost", 0) for session in tool_sessions) else item.get("waste_pct", 0)
+        raw_waste_pct = item.get("waste_pct")
+        computed_waste_pct = round(min(100.0, sum(pattern_totals.values()) / tool_total_cost * 100), 1) if tool_session_count and tool_total_cost else 0
+        if computed_waste_pct > 0 and (not isinstance(raw_waste_pct, (int, float)) or raw_waste_pct <= 0):
+            waste_ratio_pct = computed_waste_pct
+        elif isinstance(raw_waste_pct, (int, float)):
+            waste_ratio_pct = round(raw_waste_pct, 1)
+        else:
+            waste_ratio_pct = 0
         projected_avg = round(max(avg_cost * (1 - waste_ratio_pct / 100), 0), 2) if tool_session_count else 0
         projected_monthly = round(avg_cost * tool_session_count / period_days * 30 * (waste_ratio_pct / 100), 2) if tool_session_count else 0
         tool_stats.append(
@@ -736,6 +793,9 @@ def build_target_strategy(tool_targets):
     elif effective_targets:
         mode = "project_only"
         summary = "This tool does not expose a reliable machine-wide instruction surface, so optimization stays project-local."
+    elif any(target.get("kind") == "config_path" and target.get("exists", True) for target in tool_targets):
+        mode = "settings_only"
+        summary = "A settings file was detected, but this auto-apply flow only writes instruction files right now."
     else:
         mode = "no_targets"
         summary = "No writable optimization targets were detected for this tool yet."
@@ -757,8 +817,8 @@ def build_target_strategy(tool_targets):
     }
 
 
-def build_optimization_plan(header_statistics, optimization_target_list, sessions):
-    period_days = infer_period_days({"date_range": None}, sessions)
+def build_optimization_plan(header_statistics, optimization_target_list, sessions, summary=None):
+    period_days = infer_period_days(summary or {"date_range": None}, sessions)
     tools = []
     target_map = defaultdict(list)
     for target in optimization_target_list:
@@ -842,6 +902,8 @@ def build_payload(data, instruction_file_path=None):
     failed_tools = data.get("failed_tools", [])
     detected_tools = build_detected_tool_inventory(data)
     optimization_target_list = build_optimization_targets(data, instruction_file_path, detected_tools)
+    detected_tools = build_detected_tool_inventory(data, optimization_target_list)
+    optimization_targets = optimization_target_list
     preferred_instruction_target = next(
         (
             target for target in optimization_target_list
@@ -926,6 +988,7 @@ def build_payload(data, instruction_file_path=None):
             "thresholds": {"good_max_waste_pct": GOOD_WASTE_THRESHOLD_PCT},
             "tool_sequence": [],
             "tools": [],
+            "entry_tool_id": None,
         }
         return payload
 
@@ -992,7 +1055,7 @@ def build_payload(data, instruction_file_path=None):
             break
 
     header_statistics = build_header_statistics(summary, detected_tools, sessions, model_mix, top_patterns)
-    optimization_plan = build_optimization_plan(header_statistics, optimization_target_list, sessions)
+    optimization_plan = build_optimization_plan(header_statistics, optimization_target_list, sessions, summary)
     duration_notes = build_duration_notes(sessions)
 
     payload = {
@@ -1031,6 +1094,7 @@ def build_payload(data, instruction_file_path=None):
             },
         ],
         "top_waste_patterns": top_patterns,
+        "header_actions": build_header_actions(),
         "next_action": build_next_action(top_patterns, instruction_file_name, optimization_plan),
         "unified_scan": {
             "mode": data.get("scan_scope", {}).get("mode", "single_tool"),

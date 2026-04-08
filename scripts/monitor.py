@@ -6,13 +6,25 @@ from collections import defaultdict
 from pathlib import Path
 
 def load_sessions(analysis_path):
+    if not os.path.exists(analysis_path):
+        print(f"Error: file not found: {analysis_path}", file=sys.stderr)
+        sys.exit(1)
     with open(analysis_path) as f:
-        return json.load(f)
+        content = f.read().strip()
+    if not content:
+        print(f"Error: file is empty: {analysis_path}", file=sys.stderr)
+        sys.exit(1)
+    try:
+        return json.loads(content)
+    except json.JSONDecodeError as exc:
+        print(f"Error: invalid JSON in {analysis_path}: {exc}", file=sys.stderr)
+        sys.exit(1)
 
 def split_by_week(sessions):
     """Split sessions into current week (last 7 days) and previous week (7-14 days ago)."""
     now = datetime.now(timezone.utc)
     week_ago = now - timedelta(days=7)
+    two_weeks_ago = now - timedelta(days=14)
 
     current = []
     previous = []
@@ -23,7 +35,7 @@ def split_by_week(sessions):
             continue
         if dt >= week_ago:
             current.append(s)
-        else:
+        elif dt >= two_weeks_ago:
             previous.append(s)
     return current, previous
 
@@ -33,7 +45,7 @@ def week_stats(sessions):
     n = len(sessions)
     total_cost = sum(s['total_cost'] for s in sessions)
     total_turns = sum(s['total_turns'] for s in sessions)
-    total_waste = sum(sum(w['cost'] for w in s['waste'].values()) for s in sessions)
+    total_waste = sum(sum(w.get('cost', 0) for w in s.get('waste', {}).values()) for s in sessions)
     return {
         'sessions': n,
         'total_cost': round(total_cost, 2),
@@ -41,7 +53,7 @@ def week_stats(sessions):
         'avg_turns': round(total_turns / n, 1),
         'total_waste': round(total_waste, 2),
         'waste_pct': round(total_waste / total_cost * 100, 1) if total_cost > 0 else 0,
-        'idle_per_session': round(sum(s['waste']['idle_narration']['turns'] for s in sessions) / n, 1),
+        'idle_per_session': round(sum(s.get('waste', {}).get('idle_narration', {}).get('turns', 0) for s in sessions) / n, 1),
     }
 
 def main():
@@ -112,7 +124,11 @@ def main():
         if cs['waste_pct'] > ps['waste_pct'] + 5:
             alerts.append(f"Waste increased from {ps['waste_pct']:.0f}% to {cs['waste_pct']:.0f}% — review your instruction-file rules")
         if cs['avg_cost'] > ps['avg_cost'] * 1.3:
-            alerts.append(f"Avg session cost up {((cs['avg_cost']/ps['avg_cost'])-1)*100:.0f}% — check for scope creep")
+            if ps['avg_cost'] > 0:
+                delta_pct = ((cs['avg_cost'] / ps['avg_cost']) - 1) * 100
+                alerts.append(f"Avg session cost up {delta_pct:.0f}% — check for scope creep")
+            else:
+                alerts.append(f"Avg session cost up from $0.00 to ${cs['avg_cost']:.2f} — check for scope creep")
         if cs['idle_per_session'] > ps['idle_per_session'] + 3:
             alerts.append(f"Idle turns up from {ps['idle_per_session']:.0f} to {cs['idle_per_session']:.0f} — narration rules may not be sticking")
 

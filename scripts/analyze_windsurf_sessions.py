@@ -8,7 +8,7 @@ import sys
 from collections import defaultdict
 
 from analyze_sessions import MODEL_PATTERNS, PLATFORM_SIGNALS
-from model_pricing import get_pricing
+from model_pricing import get_pricing, get_pricing_metadata
 
 READ_STEP_TYPES = {'view_file', 'read_file', 'list_directory', 'grep_search', 'find', 'search_codebase'}
 SEARCH_STEP_TYPES = {'find', 'grep_search', 'search_web', 'web_search', 'search_docs'}
@@ -634,6 +634,13 @@ def aggregate_results(results):
             'waste_pct': round(min(data['waste'], data['cost'] * 0.85) / data['cost'] * 100, 1) if data['cost'] > 0 else 0,
         }
 
+    primary_model = next(iter(output['model_mix']), results[0]['model'])
+    output['analysis_confidence'] = {
+        'score': 0.45,
+        'label': 'estimated',
+        'reason': 'Windsurf analysis reconstructs token counts from transcript text lengths; no billing-grade usage data is available.',
+    }
+    output['pricing_metadata'] = get_pricing_metadata(primary_model)
     return output
 
 

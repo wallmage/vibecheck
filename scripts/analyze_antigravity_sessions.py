@@ -7,7 +7,7 @@ from datetime import datetime
 from pathlib import Path
 
 from analyze_sessions import PLATFORM_SIGNALS
-from model_pricing import get_pricing
+from model_pricing import get_pricing, get_pricing_metadata
 
 
 def estimate_tokens(text):
@@ -172,7 +172,24 @@ def aggregate(results):
             'description': waste['description'],
         }
 
-    out['per_project'] = {}
+    projects = defaultdict(lambda: {'sessions': 0, 'cost': 0, 'turns': 0, 'waste': 0})
+    for result in results:
+        project = projects[result['project']]
+        project['sessions'] += 1
+        project['cost'] += result['total_cost']
+        project['turns'] += result['total_turns']
+        project['waste'] += sum(waste['cost'] for waste in result['waste'].values())
+    out['per_project'] = {
+        proj: {
+            'sessions': info['sessions'],
+            'total_cost': round(info['cost'], 2),
+            'avg_cost': round(info['cost'] / info['sessions'], 2),
+            'avg_turns': round(info['turns'] / info['sessions'], 1),
+            'waste': round(info['waste'], 2),
+            'waste_pct': round(min(info['waste'], info['cost'] * 0.85) / info['cost'] * 100, 1) if info['cost'] > 0 else 0,
+        }
+        for proj, info in sorted(projects.items(), key=lambda item: -item[1]['cost'])
+    }
     out['model_mix'] = {'gemini-2.5-pro': {'sessions': n, 'pct_sessions': 100.0, 'total_cost': round(total_cost, 2), 'pct_cost': 100.0 if total_cost > 0 else 0, 'avg_cost': round(total_cost / n, 2), 'avg_turns': round(total_turns / n, 1)}}
     platform_totals = defaultdict(lambda: {'sessions': 0, 'cost': 0, 'waste': 0})
     for result in results:
@@ -191,6 +208,13 @@ def aggregate(results):
     }
     out['reviewer_roi'] = {}
     out['polling_summary'] = {'total_sleep_poll_turns': 0, 'avg_per_session': 0, 'estimated_cost': 0}
+    primary_model = next(iter(out.get('model_mix', {})), results[0]['model'])
+    out['analysis_confidence'] = {
+        'score': 0.45,
+        'label': 'estimated',
+        'reason': 'Antigravity analysis reconstructs token counts from brain artifacts; no billing-grade usage data is available.',
+    }
+    out['pricing_metadata'] = get_pricing_metadata(primary_model)
     return out
 
 

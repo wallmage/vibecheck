@@ -293,9 +293,9 @@ TOOLS = {
         'name': 'CodeBuddy (Tencent)',
         'instruction_files': ['CODEBUDDY.md'],
         'log_paths': {
-            'Darwin': [f'{HOME}/Library/Application Support/CodeBuddy/codebuddy-sessions.vscdb', f'{HOME}/.codebuddy/projects/*/*.jsonl'],
-            'Linux': [f'{HOME}/.config/CodeBuddy/codebuddy-sessions.vscdb', f'{HOME}/.codebuddy/projects/*/*.jsonl'],
-            'Windows': [f'{APPDATA}/CodeBuddy/codebuddy-sessions.vscdb', f'{HOME}/.codebuddy/projects/*/*.jsonl'],
+            'Darwin': [f'{HOME}/Library/Application Support/CodeBuddy/codebuddy-sessions.vscdb', f'{HOME}/.codebuddy/codebuddy-sessions.vscdb'],
+            'Linux': [f'{HOME}/.config/CodeBuddy/codebuddy-sessions.vscdb', f'{HOME}/.codebuddy/codebuddy-sessions.vscdb'],
+            'Windows': [f'{APPDATA}/CodeBuddy/codebuddy-sessions.vscdb', f'{HOME}/.codebuddy/codebuddy-sessions.vscdb'],
         },
         'log_format': 'sqlite',
         'detect_files': [f'{HOME}/.codebuddy', f'{HOME}/Library/Application Support/CodeBuddy' if IS_MAC else '', f'{HOME}/.config/CodeBuddy' if IS_LINUX else '', f'{APPDATA}/CodeBuddy' if IS_WIN else ''],
@@ -306,9 +306,9 @@ TOOLS = {
         'name': 'WorkBuddy (Tencent)',
         'instruction_files': ['WORKBUDDY.md'],
         'log_paths': {
-            'Darwin': [f'{HOME}/Library/Application Support/WorkBuddy/codebuddy-sessions.vscdb', f'{HOME}/Library/Application Support/WorkBuddy/User/workspaceStorage/*/state.vscdb'],
-            'Linux': [f'{HOME}/.config/WorkBuddy/codebuddy-sessions.vscdb'],
-            'Windows': [f'{APPDATA}/WorkBuddy/codebuddy-sessions.vscdb'],
+            'Darwin': [f'{HOME}/Library/Application Support/WorkBuddy/workbuddy-sessions.vscdb'],
+            'Linux': [f'{HOME}/.config/WorkBuddy/workbuddy-sessions.vscdb', f'{HOME}/.workbuddy/workbuddy-sessions.vscdb'],
+            'Windows': [f'{APPDATA}/WorkBuddy/workbuddy-sessions.vscdb'],
         },
         'log_format': 'sqlite',
         'detect_files': [f'{HOME}/.workbuddy', f'{HOME}/Library/Application Support/WorkBuddy' if IS_MAC else '', f'{HOME}/.config/WorkBuddy' if IS_LINUX else '', f'{APPDATA}/WorkBuddy' if IS_WIN else ''],
@@ -899,14 +899,17 @@ def main():
         'instruction_targets': find_instruction_targets(project_dir),
         'optimization_targets': find_optimization_targets(project_dir, installed),
         'primary_tool': None,
+        'primary_tool_name': None,
         'primary_log_format': None,
         'log_count': 0,
         'instruction_file': None,
         'needs_manual_input': False,
         'is_always_on': False,
         'supports_instruction_optimization': False,
+        'can_analyze': False,
         'analysis_mode': DEFAULT_SUPPORT['analysis_mode'],
         'support_level': DEFAULT_SUPPORT['support_level'],
+        'note': None,
     }
 
     # Determine primary tool

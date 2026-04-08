@@ -1,8 +1,12 @@
 import json
+import os
+import sqlite3
 import subprocess
 import sys
 import tempfile
 import unittest
+from contextlib import redirect_stdout
+from io import StringIO
 from pathlib import Path
 from unittest.mock import patch
 
@@ -13,6 +17,7 @@ if str(SCRIPTS) not in sys.path:
     sys.path.insert(0, str(SCRIPTS))
 
 import detect_tool
+from model_pricing import get_pricing, get_pricing_metadata
 from scan_contract import build_contract_dict
 
 
@@ -28,6 +33,15 @@ def run_json(script_name, *args):
 
 
 class RegressionTests(unittest.TestCase):
+    def test_model_pricing_resolves_deepseek_aliases(self):
+        pricing = get_pricing("deepseek-chat")
+        metadata = get_pricing_metadata("deepseek-chat")
+
+        self.assertEqual(pricing["provider"], "deepseek")
+        self.assertAlmostEqual(pricing["output"], 0.42)
+        self.assertEqual(metadata["canonical_model"], "deepseek-v3.2")
+        self.assertEqual(metadata["provider"], "deepseek")
+
     def test_claude_analysis_includes_confidence_and_pricing_metadata(self):
         data = run_json("analyze_claude_sessions.py", ROOT / "tests/fixtures/claude/sessions.json")
         self.assertEqual(data["analysis_confidence"]["label"], "measured")
@@ -174,6 +188,307 @@ class RegressionTests(unittest.TestCase):
         self.assertIn("Pricing registry:", result.stdout)
         self.assertIn("Billing mode:", result.stdout)
 
+    def test_report_handles_empty_analysis_without_crashing(self):
+        analysis = {
+            "summary": {
+                "sessions": 0,
+                "total_sessions": 0,
+                "date_range": None,
+                "total_cost": 0,
+                "avg_cost_per_session": 0,
+                "avg_turns_per_session": 0,
+                "avg_cost_per_turn": 0,
+                "total_waste": 0,
+                "waste_per_session": 0,
+                "waste_percentage": 0,
+                "projected_cost_after_fix": 0,
+            },
+            "sessions": [],
+            "waste_breakdown": {},
+            "tool_mix": {},
+            "model_mix": {},
+            "analysis_confidence": {"label": "estimated", "score": 0, "reason": "none"},
+            "pricing_metadata": {"provider": "unknown", "billing_mode": "token_only_estimate"},
+        }
+        fixture_path = ROOT / "tests/fixtures/tmp-empty-report-analysis.json"
+        fixture_path.write_text(json.dumps(analysis))
+        try:
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS / "report.py"), str(fixture_path)],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+            )
+        finally:
+            fixture_path.unlink(missing_ok=True)
+
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("Sessions analyzed:   0", result.stdout)
+        self.assertIn("Period:              unavailable", result.stdout)
+
+    def test_report_handles_missing_waste_breakdown_without_crashing(self):
+        analysis = {
+            "summary": {
+                "sessions": 1,
+                "total_sessions": 1,
+                "date_range": "2026-04-09 to 2026-04-09",
+                "total_cost": 1.0,
+                "avg_cost_per_session": 1.0,
+                "avg_turns_per_session": 2.0,
+                "avg_cost_per_turn": 0.5,
+                "total_waste": 0,
+                "waste_per_session": 0,
+                "waste_percentage": 0,
+                "projected_cost_after_fix": 1.0,
+            }
+        }
+        fixture_path = ROOT / "tests/fixtures/tmp-missing-waste-report-analysis.json"
+        fixture_path.write_text(json.dumps(analysis))
+        try:
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS / "report.py"), str(fixture_path)],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+            )
+        finally:
+            fixture_path.unlink(missing_ok=True)
+
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("Sessions analyzed:   1", result.stdout)
+        self.assertIn("WASTE IDENTIFIED", result.stdout)
+
+    def test_compare_handles_sparse_empty_snapshots_without_crashing(self):
+        before = {
+            "schema_version": 1,
+            "summary": {
+                "sessions": 0,
+                "total_sessions": 0,
+                "total_cost": 0,
+                "avg_cost_per_session": 0,
+                "avg_turns_per_session": 0,
+                "total_waste": 0,
+                "waste_percentage": 0,
+            },
+            "waste_breakdown": {},
+        }
+        after = {
+            "schema_version": 1,
+            "summary": {
+                "sessions": 0,
+                "total_sessions": 0,
+                "total_cost": 0,
+                "avg_cost_per_session": 0,
+                "avg_turns_per_session": 0,
+                "total_waste": 0,
+                "waste_percentage": 0,
+            },
+            "waste_breakdown": {},
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            before_path = Path(tmpdir) / "before.json"
+            after_path = Path(tmpdir) / "after.json"
+            before_path.write_text(json.dumps(before))
+            after_path.write_text(json.dumps(after))
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS / "compare.py"), str(after_path), str(before_path)],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+            )
+
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("Period:              unavailable", result.stdout)
+        self.assertIn("Sessions:            0", result.stdout)
+
+    def test_compare_projected_view_handles_zero_context_window_without_crashing(self):
+        current = {
+            "schema_version": 1,
+            "summary": {
+                "sessions": 0,
+                "total_sessions": 0,
+                "date_range": None,
+                "total_cost": 0,
+                "avg_cost_per_session": 0,
+                "avg_turns_per_session": 0,
+                "avg_context_window_tokens": 0,
+                "avg_output_tokens_per_turn": 0,
+                "waste_percentage": 0,
+                "total_waste": 0,
+                "waste_per_session": 0,
+                "projected_cost_after_fix": 0,
+            },
+            "waste_breakdown": {},
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            current_path = Path(tmpdir) / "current.json"
+            current_path.write_text(json.dumps(current))
+            env = dict(os.environ)
+            env["HOME"] = tmpdir
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS / "compare.py"), str(current_path)],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("PROJECTED — AFTER APPLYING FIXES", result.stdout)
+        self.assertIn("Avg context window", result.stdout)
+
+    def test_compare_ignores_auto_snapshot_without_measurable_sessions(self):
+        current = {
+            "summary": {
+                "sessions": 2,
+                "total_sessions": 2,
+                "date_range": "2026-04-01 to 2026-04-02",
+                "total_cost": 4.0,
+                "avg_cost_per_session": 2.0,
+                "avg_turns_per_session": 6.0,
+                "avg_context_window_tokens": 1000,
+                "avg_output_tokens_per_turn": 100,
+                "avg_cost_per_turn": 0.33,
+                "total_waste": 1.0,
+                "waste_per_session": 0.5,
+                "waste_percentage": 25.0,
+                "projected_cost_after_fix": 1.5,
+            },
+            "waste_breakdown": {},
+        }
+        empty_snapshot = {
+            "schema_version": 1,
+            "summary": {
+                "sessions": 0,
+                "total_sessions": 0,
+                "total_cost": 0,
+                "avg_cost_per_session": 0,
+                "avg_turns_per_session": 0,
+                "total_waste": 0,
+                "waste_percentage": 0,
+            },
+            "waste_breakdown": {},
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            current_path = Path(tmpdir) / "current.json"
+            current_path.write_text(json.dumps(current))
+            snapshot_dir = Path(tmpdir) / ".vibecheck" / "snapshots"
+            snapshot_dir.mkdir(parents=True)
+            (snapshot_dir / "snapshot_20260409_010203.json").write_text(json.dumps(empty_snapshot))
+            env = dict(os.environ)
+            env["HOME"] = tmpdir
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS / "compare.py"), str(current_path)],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("PROJECTED — AFTER APPLYING FIXES", result.stdout)
+        self.assertNotIn("BEFORE / AFTER COMPARISON", result.stdout)
+
+    def test_monitor_handles_zero_cost_previous_week_without_crashing(self):
+        analysis = {
+            "sessions": [
+                {
+                    "timestamp": "2026-04-08T00:00:00+00:00",
+                    "total_cost": 1.0,
+                    "total_turns": 10,
+                    "waste": {"idle_narration": {"cost": 0.1, "turns": 1}},
+                },
+                {
+                    "timestamp": "2026-03-31T00:00:00+00:00",
+                    "total_cost": 0.0,
+                    "total_turns": 8,
+                    "waste": {"idle_narration": {"cost": 0.0, "turns": 0}},
+                },
+            ]
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            analysis_path = Path(tmpdir) / "analysis.json"
+            analysis_path.write_text(json.dumps(analysis))
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS / "monitor.py"), str(analysis_path)],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+            )
+
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("ALERTS:", result.stdout)
+        self.assertIn("Avg session cost up from $0.00 to $1.00", result.stdout)
+
+    def test_monitor_handles_sessions_without_waste_map(self):
+        analysis = {
+            "sessions": [
+                {
+                    "timestamp": "2026-04-08T00:00:00+00:00",
+                    "total_cost": 1.0,
+                    "total_turns": 10,
+                },
+                {
+                    "timestamp": "2026-03-31T00:00:00+00:00",
+                    "total_cost": 0.5,
+                    "total_turns": 8,
+                    "waste": {"idle_narration": {"cost": 0.1, "turns": 1}},
+                },
+            ]
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            analysis_path = Path(tmpdir) / "analysis.json"
+            analysis_path.write_text(json.dumps(analysis))
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS / "monitor.py"), str(analysis_path)],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+            )
+
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("WEEKLY COST MONITOR", result.stdout)
+
+    def test_monitor_previous_week_excludes_older_history(self):
+        recent = "2026-04-08T00:00:00+00:00"
+        previous_week = "2026-04-01T00:00:00+00:00"
+        older = "2026-02-01T00:00:00+00:00"
+        analysis = {
+            "sessions": [
+                {
+                    "timestamp": recent,
+                    "total_cost": 1.0,
+                    "total_turns": 10,
+                    "waste": {"idle_narration": {"cost": 0.1, "turns": 1}},
+                },
+                {
+                    "timestamp": previous_week,
+                    "total_cost": 2.0,
+                    "total_turns": 8,
+                    "waste": {"idle_narration": {"cost": 0.2, "turns": 2}},
+                },
+                {
+                    "timestamp": older,
+                    "total_cost": 20.0,
+                    "total_turns": 80,
+                    "waste": {"idle_narration": {"cost": 2.0, "turns": 20}},
+                },
+            ]
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            analysis_path = Path(tmpdir) / "analysis.json"
+            analysis_path.write_text(json.dumps(analysis))
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS / "monitor.py"), str(analysis_path)],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+            )
+
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("$2.00", result.stdout)
+        self.assertNotIn("$11.00", result.stdout)
+
     def test_present_scan_outputs_result_first_payload(self):
         analysis = run_json("analyze_claude_sessions.py", ROOT / "tests/fixtures/claude/sessions.json")
         fixture_path = ROOT / "tests/fixtures/tmp-present-analysis.json"
@@ -195,6 +510,615 @@ class RegressionTests(unittest.TestCase):
         self.assertEqual(payload["next_action"]["instruction_file"], "CLAUDE.md")
         self.assertIn("Lead with this summary first", payload["education_bridge"])
 
+    def test_explain_and_present_education_provide_fallback_guidance_for_empty_analysis(self):
+        analysis = {
+            "summary": {
+                "sessions": 0,
+                "total_sessions": 0,
+                "date_range": None,
+                "total_cost": 0,
+                "avg_cost_per_session": 0,
+                "avg_turns_per_session": 0,
+                "avg_cost_per_turn": 0,
+                "total_waste": 0,
+                "waste_per_session": 0,
+                "waste_percentage": 0,
+                "projected_cost_after_fix": 0,
+            },
+            "sessions": [],
+            "waste_breakdown": {},
+            "tool_mix": {},
+            "model_mix": {},
+            "analysis_confidence": {"label": "estimated", "score": 0, "reason": "none"},
+            "pricing_metadata": {"provider": "unknown", "billing_mode": "token_only_estimate"},
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            base = Path(tmpdir)
+            analysis_path = base / "analysis.json"
+            lesson_path = base / "lesson.json"
+            analysis_path.write_text(json.dumps(analysis))
+            lesson = run_json("explain.py", analysis_path)
+            lesson_path.write_text(json.dumps(lesson))
+            payload = run_json("present_education.py", lesson_path)
+
+        self.assertNotIn("error", lesson)
+        self.assertEqual(payload["context_window"]["headline"], "Long threads get more expensive and less sharp.")
+        self.assertEqual(payload["session_habits"]["recommended_active_minutes"], "A good default is 5-10 active minutes per focused session.")
+        self.assertTrue(payload["handoff"]["recommended"])
+
+    def test_explain_uses_summary_period_days_for_monthly_projection(self):
+        analysis = {
+            "summary": {
+                "sessions": 10,
+                "total_sessions": 10,
+                "date_range": "2026-04-01 to 2026-04-30",
+                "total_cost": 30.0,
+                "avg_cost_per_session": 3.0,
+                "avg_turns_per_session": 5.0,
+                "avg_cost_per_turn": 0.6,
+                "total_waste": 6.0,
+                "waste_per_session": 0.6,
+                "waste_percentage": 20.0,
+                "period_days": 30,
+            },
+            "sessions": [
+                {
+                    "date": "2026-04-02",
+                    "total_cost": 30.0,
+                    "total_turns": 50,
+                    "total_cache_read": 0,
+                    "total_cache_create": 0,
+                    "total_output_tokens": 0,
+                    "model": "sonnet",
+                    "waste": {"idle_narration": {"cost": 6.0}},
+                }
+            ],
+            "waste_breakdown": {},
+            "model_mix": {"sonnet": {"sessions": 10, "total_cost": 30.0, "avg_cost": 3.0, "avg_turns": 5.0}},
+            "tool_mix": {},
+            "analysis_confidence": {"label": "estimated", "score": 0.5, "reason": "fixture"},
+            "pricing_metadata": {"provider": "anthropic", "billing_mode": "token_only_estimate"},
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            analysis_path = Path(tmpdir) / "analysis.json"
+            analysis_path.write_text(json.dumps(analysis))
+            lesson = run_json("explain.py", analysis_path)
+
+        self.assertEqual(lesson["usage_summary"]["daily_cost"], 1.0)
+        self.assertEqual(lesson["usage_summary"]["monthly_projected"], 30.0)
+
+    def test_compare_uses_period_days_for_monthly_projection(self):
+        current = {
+            "summary": {
+                "sessions": 10,
+                "total_sessions": 10,
+                "date_range": "2026-04-01 to 2026-04-30",
+                "period_days": 30,
+                "total_cost": 30.0,
+                "avg_cost_per_session": 3.0,
+                "avg_turns_per_session": 5.0,
+                "avg_context_window_tokens": 1000,
+                "avg_output_tokens_per_turn": 100,
+                "avg_cost_per_turn": 0.6,
+                "total_waste": 6.0,
+                "waste_per_session": 0.6,
+                "waste_percentage": 20.0,
+                "projected_cost_after_fix": 2.4,
+            },
+            "waste_breakdown": {},
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            current_path = Path(tmpdir) / "current.json"
+            current_path.write_text(json.dumps(current))
+            env = dict(os.environ)
+            env["HOME"] = tmpdir
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS / "compare.py"), str(current_path)],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("Your pace: 0.3 sessions/day", result.stdout)
+        self.assertIn("Potential: $0.60/session -> ~$6/month", result.stdout.replace("→", "->"))
+
+    def test_merge_entries_keeps_projected_cost_after_fix_as_per_session_average(self):
+        from merge_analyses import merge_entries
+
+        entries = [
+            {
+                "tool_id": "claude_code",
+                "tool_name": "Claude Code",
+                "analysis_mode": "claude_jsonl",
+                "analysis": {
+                    "summary": {
+                        "sessions": 10,
+                        "total_sessions": 10,
+                        "total_cost": 100.0,
+                        "total_turns": 50,
+                        "total_waste": 40.0,
+                        "projected_cost_after_fix": 6.0,
+                    },
+                    "sessions": [{"timestamp": f"2026-04-01T00:00:{i:02d}Z"} for i in range(10)],
+                },
+            },
+            {
+                "tool_id": "codex",
+                "tool_name": "OpenAI Codex CLI",
+                "analysis_mode": "codex_jsonl",
+                "analysis": {
+                    "summary": {
+                        "sessions": 20,
+                        "total_sessions": 20,
+                        "total_cost": 50.0,
+                        "total_turns": 40,
+                        "total_waste": 10.0,
+                        "projected_cost_after_fix": 2.0,
+                    },
+                    "sessions": [{"timestamp": f"2026-04-02T00:00:{i:02d}Z"} for i in range(20)],
+                },
+            },
+        ]
+
+        merged = merge_entries(entries)
+
+        self.assertEqual(merged["summary"]["total_cost"], 150.0)
+        self.assertEqual(merged["summary"]["total_waste"], 50.0)
+        self.assertEqual(merged["summary"]["projected_cost_after_fix"], 3.33)
+
+    def test_report_uses_period_days_and_derived_waste_per_session(self):
+        analysis = {
+            "summary": {
+                "sessions": 10,
+                "total_sessions": 10,
+                "date_range": "2026-04-01 to 2026-04-30",
+                "period_days": 30,
+                "total_cost": 30.0,
+                "avg_cost_per_session": 3.0,
+                "projected_cost_after_fix": 2.4,
+                "total_waste": 6.0,
+                "waste_percentage": 20.0,
+            },
+            "waste_breakdown": {},
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            analysis_path = Path(tmpdir) / "analysis.json"
+            analysis_path.write_text(json.dumps(analysis))
+            env = dict(os.environ)
+            env["HOME"] = tmpdir
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS / "report.py"), str(analysis_path)],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("Total waste:         $0.600/session (20% of spend)", result.stdout)
+        self.assertIn("At your pace (0.3 sessions/day):", result.stdout)
+        self.assertIn("Monthly savings:   $6", result.stdout)
+
+    def test_report_auto_saves_markdown_report(self):
+        analysis = {
+            "summary": {
+                "sessions": 1,
+                "total_sessions": 1,
+                "date_range": "2026-04-09 to 2026-04-09",
+                "total_cost": 1.0,
+                "avg_cost_per_session": 1.0,
+                "avg_turns_per_session": 2.0,
+                "avg_cost_per_turn": 0.5,
+                "total_waste": 0.25,
+                "waste_per_session": 0.25,
+                "waste_percentage": 25.0,
+                "projected_cost_after_fix": 0.75,
+            },
+            "waste_breakdown": {
+                "idle_narration": {
+                    "per_session": 0.25,
+                    "total_cost": 0.25,
+                    "percentage_of_waste": 100.0,
+                    "description": "Turns with no tool call.",
+                }
+            },
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            analysis_path = Path(tmpdir) / "analysis.json"
+            analysis_path.write_text(json.dumps(analysis))
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS / "report.py"), str(analysis_path)],
+                cwd=tmpdir,
+                capture_output=True,
+                text=True,
+            )
+            exported = sorted(Path(tmpdir).glob("vibecheck-report-*.md"))
+            exported_content = exported[0].read_text() if exported else ""
+
+        self.assertEqual(result.returncode, 0)
+        self.assertEqual(len(exported), 1)
+        self.assertIn("Saved report:", result.stdout)
+        self.assertIn("# VibeCheck Scan Complete", exported_content)
+
+    def test_report_handles_partial_confidence_metadata(self):
+        analysis = {
+            "summary": {
+                "sessions": 1,
+                "total_sessions": 1,
+                "total_cost": 1.0,
+                "avg_cost_per_session": 1.0,
+            },
+            "analysis_confidence": {"label": "estimated"},
+            "waste_breakdown": {},
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            analysis_path = Path(tmpdir) / "analysis.json"
+            analysis_path.write_text(json.dumps(analysis))
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS / "report.py"), str(analysis_path)],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+            )
+
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("Confidence:          estimated (0.50)", result.stdout)
+        self.assertIn("Confidence metadata was not included in this analysis.", result.stdout)
+
+    def test_report_handles_sparse_waste_breakdown(self):
+        analysis = {
+            "summary": {
+                "sessions": 1,
+                "total_sessions": 1,
+                "total_cost": 1.0,
+                "avg_cost_per_session": 1.0,
+                "total_waste": 0.5,
+                "waste_percentage": 50.0,
+            },
+            "analysis_confidence": {"label": "estimated", "score": 0.5, "reason": "fixture"},
+            "waste_breakdown": {"idle_narration": {"per_session": 0.5}},
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            analysis_path = Path(tmpdir) / "analysis.json"
+            analysis_path.write_text(json.dumps(analysis))
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS / "report.py"), str(analysis_path)],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+            )
+
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("idle_narration:", result.stdout)
+        self.assertIn("Cost: $0.500/session (100% of waste)", result.stdout)
+
+    def test_compare_handles_sparse_waste_breakdown(self):
+        analysis = {
+            "summary": {
+                "sessions": 1,
+                "total_sessions": 1,
+                "total_cost": 1.0,
+                "avg_cost_per_session": 1.0,
+                "total_waste": 0.5,
+                "waste_percentage": 50.0,
+            },
+            "waste_breakdown": {"idle_narration": {"per_session": 0.5}},
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            analysis_path = Path(tmpdir) / "analysis.json"
+            analysis_path.write_text(json.dumps(analysis))
+            env = dict(os.environ)
+            env["HOME"] = tmpdir
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS / "compare.py"), str(analysis_path)],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+                env=env,
+            )
+
+        self.assertEqual(result.returncode, 0)
+        self.assertIn("idle_narration", result.stdout)
+        self.assertIn("$   0.50  (100%)", result.stdout)
+
+    def test_explain_prefers_date_range_over_active_days_when_period_days_missing(self):
+        analysis = {
+            "summary": {
+                "sessions": 2,
+                "total_sessions": 2,
+                "date_range": "2026-04-01 to 2026-04-30",
+                "total_cost": 10.0,
+                "avg_cost_per_session": 5.0,
+                "avg_turns_per_session": 4.0,
+                "avg_cost_per_turn": 1.25,
+                "total_waste": 2.0,
+                "waste_percentage": 20.0,
+            },
+            "sessions": [
+                {
+                    "date": "2026-04-01",
+                    "total_cost": 5.0,
+                    "total_turns": 4,
+                    "total_cache_read": 0,
+                    "total_cache_create": 0,
+                    "total_output_tokens": 0,
+                    "model": "sonnet",
+                    "waste": {"idle_narration": {"cost": 1.0}},
+                },
+                {
+                    "date": "2026-04-02",
+                    "total_cost": 5.0,
+                    "total_turns": 4,
+                    "total_cache_read": 0,
+                    "total_cache_create": 0,
+                    "total_output_tokens": 0,
+                    "model": "sonnet",
+                    "waste": {"idle_narration": {"cost": 1.0}},
+                },
+            ],
+            "waste_breakdown": {},
+            "model_mix": {"sonnet": {"sessions": 2, "total_cost": 10.0, "avg_cost": 5.0, "avg_turns": 4.0}},
+            "tool_mix": {},
+            "analysis_confidence": {"label": "estimated", "score": 0.5, "reason": "fixture"},
+            "pricing_metadata": {"provider": "anthropic", "billing_mode": "token_only_estimate"},
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            analysis_path = Path(tmpdir) / "analysis.json"
+            analysis_path.write_text(json.dumps(analysis))
+            lesson = run_json("explain.py", analysis_path)
+
+        self.assertEqual(lesson["usage_summary"]["daily_cost"], 0.33)
+        self.assertEqual(lesson["usage_summary"]["monthly_projected"], 10.0)
+
+    def test_explain_handles_mixed_models_on_same_day(self):
+        analysis = {
+            "summary": {
+                "sessions": 2,
+                "total_sessions": 2,
+                "date_range": "2026-04-01 to 2026-04-01",
+                "period_days": 1,
+                "total_cost": 10.0,
+                "avg_cost_per_session": 5.0,
+                "avg_turns_per_session": 2.0,
+                "avg_cost_per_turn": 2.5,
+                "total_waste": 0.0,
+                "waste_percentage": 0.0,
+            },
+            "sessions": [
+                {
+                    "date": "2026-04-01",
+                    "total_cost": 5.0,
+                    "total_turns": 2,
+                    "total_cache_read": 0,
+                    "total_cache_create": 0,
+                    "total_output_tokens": 100000,
+                    "model": "sonnet",
+                    "waste": {},
+                },
+                {
+                    "date": "2026-04-01",
+                    "total_cost": 5.0,
+                    "total_turns": 2,
+                    "total_cache_read": 0,
+                    "total_cache_create": 0,
+                    "total_output_tokens": 100000,
+                    "model": "deepseek-chat",
+                    "waste": {},
+                },
+            ],
+            "waste_breakdown": {},
+            "model_mix": {
+                "sonnet": {"sessions": 1, "total_cost": 5.0, "avg_cost": 5.0, "avg_turns": 2.0},
+                "deepseek-chat": {"sessions": 1, "total_cost": 5.0, "avg_cost": 5.0, "avg_turns": 2.0},
+            },
+            "tool_mix": {},
+            "analysis_confidence": {"label": "estimated", "score": 0.5, "reason": "fixture"},
+            "pricing_metadata": {"provider": "anthropic", "billing_mode": "token_only_estimate"},
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            analysis_path = Path(tmpdir) / "analysis.json"
+            analysis_path.write_text(json.dumps(analysis))
+            lesson = run_json("explain.py", analysis_path)
+
+        self.assertEqual(lesson["worst_day"]["model"], "mixed")
+        self.assertEqual(lesson["worst_day"]["cost_breakdown"]["output"]["cost"], 1.54)
+        self.assertEqual(lesson["worst_day"]["cost_breakdown"]["fresh_input"]["cost"], 8.46)
+
+    def test_present_scan_prefers_date_range_over_active_days_for_monthly_savings(self):
+        analysis = {
+            "summary": {
+                "sessions": 2,
+                "total_sessions": 2,
+                "date_range": "2026-04-01 to 2026-04-30",
+                "total_cost": 10.0,
+                "avg_cost_per_session": 5.0,
+                "avg_turns_per_session": 4.0,
+                "avg_cost_per_turn": 1.25,
+                "total_waste": 2.0,
+                "waste_per_session": 1.0,
+                "waste_percentage": 20.0,
+            },
+            "sessions": [
+                {
+                    "date": "2026-04-01",
+                    "tool": "claude_code",
+                    "model": "sonnet",
+                    "total_cost": 5.0,
+                    "total_turns": 4,
+                    "waste": {"idle_narration": {"cost": 1.0, "description": "idle"}},
+                },
+                {
+                    "date": "2026-04-02",
+                    "tool": "claude_code",
+                    "model": "sonnet",
+                    "total_cost": 5.0,
+                    "total_turns": 4,
+                    "waste": {"idle_narration": {"cost": 1.0, "description": "idle"}},
+                },
+            ],
+            "waste_breakdown": {
+                "idle_narration": {
+                    "total_cost": 2.0,
+                    "per_session": 1.0,
+                    "percentage_of_waste": 100.0,
+                    "description": "idle",
+                }
+            },
+            "tool_mix": {
+                "claude_code": {"sessions": 2, "avg_cost": 5.0, "avg_turns": 4.0, "total_cost": 10.0}
+            },
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            analysis_path = Path(tmpdir) / "analysis.json"
+            instruction_path = Path(tmpdir) / "CLAUDE.md"
+            analysis_path.write_text(json.dumps(analysis))
+            instruction_path.write_text("# Claude\n")
+            payload = run_json("present_scan.py", analysis_path, instruction_path)
+
+        plan = payload["optimization_plan"]["tools"][0]
+        self.assertEqual(plan["before_after"]["projected_monthly_savings"], 2.0)
+        self.assertEqual(plan["steps"][0]["projected_monthly_savings"], 2.0)
+
+    def test_present_scan_derives_tool_waste_ratio_when_tool_mix_omits_it(self):
+        analysis = {
+            "summary": {
+                "sessions": 2,
+                "total_sessions": 2,
+                "date_range": "2026-04-01 to 2026-04-30",
+                "total_cost": 10.0,
+                "avg_cost_per_session": 5.0,
+                "avg_turns_per_session": 4.0,
+                "avg_cost_per_turn": 1.25,
+                "total_waste": 2.0,
+                "waste_per_session": 1.0,
+                "waste_percentage": 20.0,
+            },
+            "sessions": [
+                {
+                    "date": "2026-04-01",
+                    "tool": "claude_code",
+                    "model": "sonnet",
+                    "total_cost": 5.0,
+                    "total_turns": 4,
+                    "waste": {"idle_narration": {"cost": 1.0, "description": "idle"}},
+                },
+                {
+                    "date": "2026-04-02",
+                    "tool": "claude_code",
+                    "model": "sonnet",
+                    "total_cost": 5.0,
+                    "total_turns": 4,
+                    "waste": {"idle_narration": {"cost": 1.0, "description": "idle"}},
+                },
+            ],
+            "waste_breakdown": {
+                "idle_narration": {
+                    "total_cost": 2.0,
+                    "per_session": 1.0,
+                    "percentage_of_waste": 100.0,
+                    "description": "idle",
+                }
+            },
+            "tool_mix": {
+                "claude_code": {"sessions": 2, "avg_cost": 5.0, "avg_turns": 4.0, "total_cost": 10.0}
+            },
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            analysis_path = Path(tmpdir) / "analysis.json"
+            instruction_path = Path(tmpdir) / "CLAUDE.md"
+            analysis_path.write_text(json.dumps(analysis))
+            instruction_path.write_text("# Claude\n")
+            payload = run_json("present_scan.py", analysis_path, instruction_path)
+
+        tool_stats = payload["header_statistics"]["tools"][0]
+        self.assertEqual(tool_stats["avg_waste_ratio_pct"], 20.0)
+        self.assertEqual(tool_stats["health"]["id"], "waste")
+
+    def test_export_optimization_log_supports_final_success_payload(self):
+        payload = {
+            "kind": "optimization_final_success",
+            "hero": {"headline": "Final summary"},
+            "summary": {
+                "tools_optimized": 1,
+                "projected_monthly_savings": 5.0,
+                "avg_cost_before": 2.0,
+                "avg_cost_after": 1.0,
+            },
+            "top_tool_wins": [
+                {
+                    "tool_id": "codex",
+                    "tool_label": "Codex",
+                    "projected_monthly_savings": 5.0,
+                    "avg_cost_before": 2.0,
+                    "avg_cost_after": 1.0,
+                }
+            ],
+            "education_next": {
+                "title": "Next",
+                "body": "Education follows.",
+            },
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            src = Path(tmpdir) / "payload.json"
+            dst = Path(tmpdir) / "out.md"
+            src.write_text(json.dumps(payload))
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS / "export_optimization_log.py"), str(src), str(dst)],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 0)
+            self.assertTrue(dst.exists())
+            markdown = dst.read_text()
+
+        self.assertIn("Final summary", markdown)
+        self.assertIn("Projected monthly savings", markdown)
+        self.assertIn("Education follows.", markdown)
+
+    def test_export_optimization_log_supports_education_payload(self):
+        payload = {
+            "kind": "optimization_education",
+            "hero": {"headline": "Keep the gains"},
+            "context_window": {"headline": "Context", "plain": "Trim old context."},
+            "session_habits": {
+                "headline": "Habits",
+                "recommended_active_minutes": "5-10",
+                "recommended_turn_ceiling": "30-40 turns",
+            },
+            "continuity_system": {
+                "persistent_behavior": "Put durable rules in instruction files.",
+                "project_docs": "Split project docs by topic.",
+                "project_doc_structure": ["Architecture", "Roadmap"],
+            },
+            "handoff": {
+                "recommended": True,
+                "purpose": "Carry state to a fresh chat.",
+                "how_to_use": "Say handoff.",
+                "install_prompt": "Help me install this skill too: ...",
+                "repo_url": "https://example.com/handoff",
+            },
+        }
+        with tempfile.TemporaryDirectory() as tmpdir:
+            src = Path(tmpdir) / "payload.json"
+            dst = Path(tmpdir) / "out.md"
+            src.write_text(json.dumps(payload))
+            result = subprocess.run(
+                [sys.executable, str(SCRIPTS / "export_optimization_log.py"), str(src), str(dst)],
+                cwd=ROOT,
+                capture_output=True,
+                text=True,
+            )
+            self.assertEqual(result.returncode, 0)
+            self.assertTrue(dst.exists())
+            markdown = dst.read_text()
+
+        self.assertIn("Keep the gains", markdown)
+        self.assertIn("Trim old context.", markdown)
+        self.assertIn("https://example.com/handoff", markdown)
+
     def test_present_scan_exposes_workflow_start_handoff(self):
         analysis = run_json("analyze_claude_sessions.py", ROOT / "tests/fixtures/claude/sessions.json")
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -210,6 +1134,52 @@ class RegressionTests(unittest.TestCase):
         )
         self.assertEqual(payload["next_action"]["workflow"]["step_rank"], 1)
         self.assertIn("present_next_workflow_item.py", payload["next_action"]["command"])
+
+    def test_present_scan_does_not_crash_when_entry_tool_has_no_steps(self):
+        analysis = {
+            "summary": {
+                "sessions": 1,
+                "total_sessions": 1,
+                "avg_cost_per_session": 1.23,
+                "waste_percentage": 40.0,
+            },
+            "waste_breakdown": {
+                "idle_narration": {
+                    "per_session": 0.5,
+                    "total_cost": 0.5,
+                    "percentage_of_waste": 100.0,
+                    "description": "Turns with no tool call and <150 output tokens (pure narration)",
+                }
+            },
+            "tool_mix": {
+                "claude_code": {"name": "Claude Code", "sessions": 1, "total_cost": 1.23, "waste_pct": 40.0, "analysis_mode": "claude_jsonl"},
+            },
+            "sessions": [
+                {
+                    "source_tool": "claude_code",
+                    "source_tool_name": "Claude Code",
+                    "model": "claude-sonnet-4.6",
+                    "total_turns": 10,
+                    "total_cost": 1.23,
+                    "waste": {
+                        "idle_narration": {"cost": 0.5, "description": "Turns with no tool call and <150 output tokens (pure narration)"},
+                    },
+                }
+            ],
+            "installed_tools": [
+                {"id": "claude_code", "name": "Claude Code", "support_level": "full", "can_analyze": True, "analysis_mode": "claude_jsonl", "log_count": 3},
+            ],
+            "optimization_targets": [],
+        }
+        fixture_path = ROOT / "tests/fixtures/tmp-empty-steps-analysis.json"
+        fixture_path.write_text(json.dumps(analysis))
+        try:
+            payload = run_json("present_scan.py", fixture_path)
+        finally:
+            fixture_path.unlink(missing_ok=True)
+
+        self.assertIsNone(payload["optimization_plan"]["entry_tool_id"])
+        self.assertNotIn("workflow", payload["next_action"])
 
     def test_present_scan_emits_calm_empty_state_for_zero_sessions(self):
         analysis = {
@@ -498,10 +1468,238 @@ class RegressionTests(unittest.TestCase):
         self.assertEqual(payload["coverage"]["detected_tools"][2]["status"], "skipped")
         self.assertEqual(payload["coverage"]["detected_tools"][3]["status"], "failed")
         self.assertEqual(payload["coverage"]["detected_tools"][0]["optimization_targets"], 1)
-        self.assertEqual(payload["coverage"]["detected_tools"][1]["optimization_targets"], 1)
+        self.assertEqual(payload["coverage"]["detected_tools"][1]["optimization_targets"], 0)
         self.assertEqual(len(payload["optimization_targets"]), 2)
         self.assertEqual(payload["optimization_targets"][0]["kind"], "instruction_file")
         self.assertEqual(payload["optimization_targets"][1]["kind"], "config_path")
+
+    def test_present_scan_adds_current_instruction_file_as_fallback_when_global_target_is_missing(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            base = Path(tmpdir)
+            instruction_path = base / "AGENTS.md"
+            instruction_path.write_text("# local rules\n")
+            analysis = {
+                "summary": {
+                    "sessions": 1,
+                    "total_sessions": 1,
+                    "avg_cost_per_session": 1.20,
+                    "waste_percentage": 30.0,
+                },
+                "waste_breakdown": {
+                    "idle_narration": {
+                        "per_session": 0.2,
+                        "total_cost": 0.2,
+                        "percentage_of_waste": 100.0,
+                        "description": "Turns with no tool call.",
+                    }
+                },
+                "tool_mix": {
+                    "codex": {
+                        "name": "OpenAI Codex CLI",
+                        "sessions": 1,
+                        "total_cost": 1.20,
+                        "waste_pct": 30.0,
+                        "analysis_mode": "codex_jsonl",
+                    }
+                },
+                "sessions": [
+                    {
+                        "source_tool": "codex",
+                        "source_tool_name": "OpenAI Codex CLI",
+                        "model": "gpt-5.4",
+                        "total_turns": 12,
+                        "total_cost": 1.20,
+                        "waste": {
+                            "idle_narration": {
+                                "cost": 0.2,
+                                "description": "Turns with no tool call.",
+                            }
+                        },
+                    }
+                ],
+                "installed_tools": [
+                    {
+                        "id": "codex",
+                        "name": "OpenAI Codex CLI",
+                        "support_level": "full",
+                        "can_analyze": True,
+                        "analysis_mode": "codex_jsonl",
+                    }
+                ],
+                "optimization_targets": [
+                    {
+                        "tool": "codex",
+                        "tool_name": "OpenAI Codex CLI",
+                        "file": "/Users/test/.codex/AGENTS.md",
+                        "filename": "AGENTS.md",
+                        "kind": "instruction_file",
+                        "scope": "global",
+                        "exists": False,
+                        "action": "update",
+                        "priority_band": "primary",
+                        "source": "global_instruction",
+                    }
+                ],
+            }
+            analysis_path = base / "analysis.json"
+            analysis_path.write_text(json.dumps(analysis))
+
+            payload = run_json("present_scan.py", analysis_path, instruction_path)
+
+        strategy = payload["optimization_plan"]["tools"][0]["optimization_strategy"]
+        self.assertEqual(payload["optimization_plan"]["entry_tool_id"], "codex")
+        self.assertEqual(payload["optimization_plan"]["tool_sequence"], ["codex"])
+        self.assertEqual(strategy["mode"], "project_only")
+        self.assertEqual(strategy["counts"]["effective"], 1)
+        self.assertEqual(strategy["effective_targets"][0]["path"], str(instruction_path))
+        self.assertEqual(payload["next_action"]["workflow"]["tool_id"], "codex")
+        self.assertEqual(payload["optimization_targets"][-1]["path"], str(instruction_path))
+
+    def test_present_scan_keeps_settings_only_targets_in_report_but_out_of_auto_apply_flow(self):
+        analysis = {
+            "summary": {
+                "sessions": 1,
+                "total_sessions": 1,
+                "avg_cost_per_session": 1.20,
+                "waste_percentage": 30.0,
+            },
+            "waste_breakdown": {
+                "idle_narration": {
+                    "per_session": 0.2,
+                    "total_cost": 0.2,
+                    "percentage_of_waste": 100.0,
+                    "description": "Turns with no tool call.",
+                }
+            },
+            "tool_mix": {
+                "gemini_cli": {
+                    "name": "Gemini CLI",
+                    "sessions": 1,
+                    "total_cost": 1.20,
+                    "waste_pct": 30.0,
+                    "analysis_mode": "instruction_only",
+                }
+            },
+            "sessions": [
+                {
+                    "source_tool": "gemini_cli",
+                    "source_tool_name": "Gemini CLI",
+                    "model": "gemini-2.5-pro",
+                    "total_turns": 12,
+                    "total_cost": 1.20,
+                    "waste": {
+                        "idle_narration": {
+                            "cost": 0.2,
+                            "description": "Turns with no tool call.",
+                        }
+                    },
+                }
+            ],
+            "installed_tools": [
+                {
+                    "id": "gemini_cli",
+                    "name": "Gemini CLI",
+                    "support_level": "limited",
+                    "can_analyze": False,
+                    "analysis_mode": "instruction_only",
+                }
+            ],
+            "optimization_targets": [
+                {
+                    "tool": "gemini_cli",
+                    "tool_name": "Gemini CLI",
+                    "file": "/tmp/.gemini/settings.json",
+                    "filename": "settings.json",
+                    "kind": "config_path",
+                    "scope": "global",
+                    "exists": True,
+                    "action": "update",
+                    "priority_band": "secondary",
+                    "source": "config",
+                }
+            ],
+        }
+        fixture_path = ROOT / "tests/fixtures/tmp-settings-only-analysis.json"
+        fixture_path.write_text(json.dumps(analysis))
+        try:
+            payload = run_json("present_scan.py", fixture_path)
+        finally:
+            fixture_path.unlink(missing_ok=True)
+
+        tool = payload["optimization_plan"]["tools"][0]
+        self.assertEqual(payload["coverage"]["detected_tools"][0]["optimization_targets"], 0)
+        self.assertEqual(payload["optimization_targets"][0]["kind"], "config_path")
+        self.assertEqual(tool["optimization_strategy"]["mode"], "settings_only")
+        self.assertFalse(tool["can_auto_optimize"])
+        self.assertEqual(tool["steps"], [])
+
+    def test_present_scan_exposes_save_report_header_action(self):
+        analysis = {
+            "summary": {
+                "sessions": 1,
+                "total_sessions": 1,
+                "avg_cost_per_session": 1.2,
+                "waste_percentage": 30.0,
+            },
+            "waste_breakdown": {
+                "idle_narration": {
+                    "per_session": 0.2,
+                    "total_cost": 0.2,
+                    "percentage_of_waste": 100.0,
+                    "description": "Turns with no tool call.",
+                }
+            },
+            "sessions": [
+                {
+                    "source_tool": "codex",
+                    "source_tool_name": "OpenAI Codex CLI",
+                    "model": "gpt-5.4",
+                    "total_turns": 12,
+                    "total_cost": 1.2,
+                    "waste": {
+                        "idle_narration": {
+                            "cost": 0.2,
+                            "description": "Turns with no tool call.",
+                        }
+                    },
+                }
+            ],
+            "tool_mix": {
+                "codex": {
+                    "name": "OpenAI Codex CLI",
+                    "sessions": 1,
+                    "total_cost": 1.2,
+                    "waste_pct": 30.0,
+                    "analysis_mode": "codex_jsonl",
+                    "can_analyze": True,
+                }
+            },
+            "optimization_targets": [
+                {
+                    "tool": "codex",
+                    "tool_name": "OpenAI Codex CLI",
+                    "file": "/tmp/AGENTS.md",
+                    "filename": "AGENTS.md",
+                    "kind": "instruction_file",
+                    "scope": "project",
+                    "exists": True,
+                    "action": "update",
+                    "priority_band": "primary",
+                    "source": "project_instruction",
+                }
+            ],
+        }
+        fixture_path = ROOT / "tests/fixtures/tmp-save-report-analysis.json"
+        fixture_path.write_text(json.dumps(analysis))
+        try:
+            payload = run_json("present_scan.py", fixture_path, "/tmp/AGENTS.md")
+        finally:
+            fixture_path.unlink(missing_ok=True)
+
+        self.assertEqual(payload["header_actions"][0]["id"], "save_report")
+        self.assertEqual(payload["header_actions"][0]["label"], "Save Report")
+        self.assertIn("export_optimization_log.py /tmp/vibecheck_result.json", payload["header_actions"][0]["command"])
+        self.assertTrue(payload["header_actions"][0]["default_filename"].startswith("vibecheck-report-"))
 
     def test_find_optimization_targets_prefers_global_instruction_surface(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -617,6 +1815,26 @@ class RegressionTests(unittest.TestCase):
         self.assertEqual(installed[0]["global_settings_status"], "verified")
         self.assertEqual(installed[0]["known_global_instruction_paths"], [str(fake_global)])
         self.assertEqual(targets[0]["file"], str(fake_global))
+
+    def test_detect_tool_emits_documented_default_keys_when_no_tool_is_found(self):
+        stdout = StringIO()
+        with patch.object(detect_tool, "detect_installed_tools", return_value=[]), \
+             patch.object(detect_tool, "find_global_instruction_targets", return_value=[]), \
+             patch.object(detect_tool, "scan_project_for_tool", return_value=None), \
+             patch.object(detect_tool, "find_instruction_file", return_value=None), \
+             patch.object(detect_tool, "find_instruction_targets", return_value=[]), \
+             patch.object(detect_tool, "find_optimization_targets", return_value=[]), \
+             patch.object(detect_tool, "detect_remote_session", return_value={"is_ssh": False, "is_mobile_terminal": False, "note": None}), \
+             patch.object(sys, "argv", ["detect_tool.py"]), \
+             redirect_stdout(stdout):
+            detect_tool.main()
+
+        payload = json.loads(stdout.getvalue())
+        self.assertIsNone(payload["primary_tool_name"])
+        self.assertFalse(payload["can_analyze"])
+        self.assertIsNone(payload["note"])
+        self.assertEqual(payload["analysis_mode"], "instruction_only")
+        self.assertEqual(payload["support_level"], "limited")
 
     def test_report_prints_tool_and_provider_breakdowns_for_merged_analysis(self):
         claude = run_json("analyze_claude_sessions.py", ROOT / "tests/fixtures/claude/sessions.json")
@@ -1393,6 +2611,44 @@ class RegressionTests(unittest.TestCase):
         self.assertEqual(payload["workflow"]["remaining_target_files"], 1)
         self.assertIn("1 target edit", payload["card"]["body"])
 
+    def test_present_bulk_apply_prompt_excludes_non_instruction_targets_from_edit_count(self):
+        scan_payload = {
+            "optimization_plan": {
+                "tool_sequence": ["tool1", "tool2"],
+                "tools": [
+                    {
+                        "tool_id": "tool1",
+                        "tool_label": "Tool 1",
+                        "steps": [
+                            {
+                                "rank": 1,
+                                "title": "done",
+                                "target_files": [{"kind": "instruction_file", "path": "/tmp/ONE.md", "exists": True}],
+                                "execution": {"status": "applied"},
+                            }
+                        ],
+                    },
+                    {
+                        "tool_id": "tool2",
+                        "tool_label": "Tool 2",
+                        "before_after": {"projected_monthly_savings": 10.0},
+                        "steps": [
+                            {"rank": 1, "title": "config", "target_files": [{"kind": "config_path", "path": "/tmp/settings.json", "exists": True}]},
+                            {"rank": 2, "title": "rule", "target_files": [{"kind": "instruction_file", "path": "/tmp/TWO.md", "exists": True}]},
+                        ],
+                    },
+                ],
+            }
+        }
+        fixture_path = ROOT / "tests/fixtures/tmp-bulk-instruction-only-targets.json"
+        fixture_path.write_text(json.dumps(scan_payload))
+        try:
+            payload = run_json("present_bulk_apply_prompt.py", fixture_path, "tool1")
+        finally:
+            fixture_path.unlink(missing_ok=True)
+        self.assertEqual(payload["workflow"]["remaining_target_files"], 1)
+        self.assertIn("1 target edit", payload["card"]["body"])
+
     def test_present_tool_success_includes_status_report_and_top_savings(self):
         scan_payload = {
             "optimization_plan": {
@@ -1541,6 +2797,63 @@ class RegressionTests(unittest.TestCase):
         self.assertIn("Redirect noisy build/test/install output", codex_content)
         self.assertNotIn("Vibecheck Cost Rules", claude_content)
 
+    def test_vibecheck_optimize_bulk_marks_missing_runtime_targets_skipped(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            base = Path(tmpdir)
+            claude_file = base / "CLAUDE.md"
+            codex_file = base / "AGENTS.md"
+            claude_file.write_text("# Claude\n")
+            codex_file.write_text("# Codex\n")
+            payload_path = base / "payload.json"
+            payload_path.write_text(
+                json.dumps(
+                    {
+                        "optimization_plan": {
+                            "tool_sequence": ["claude_code", "codex"],
+                            "tools": [
+                                {
+                                    "tool_id": "claude_code",
+                                    "tool_label": "Claude Code",
+                                    "steps": [
+                                        {
+                                            "rank": 1,
+                                            "title": "Narration",
+                                            "patterns": [{"key": "idle_narration"}],
+                                            "target_files": [{"kind": "instruction_file", "file": str(claude_file), "exists": True}],
+                                            "execution": {"status": "applied"},
+                                        }
+                                    ],
+                                },
+                                {
+                                    "tool_id": "codex",
+                                    "tool_label": "OpenAI Codex CLI",
+                                    "steps": [
+                                        {
+                                            "rank": 1,
+                                            "title": "Verbose output",
+                                            "patterns": [{"key": "verbose_output"}],
+                                            "target_files": [{"kind": "instruction_file", "file": str(codex_file), "exists": True}],
+                                        }
+                                    ],
+                                },
+                            ]
+                        }
+                    }
+                )
+            )
+            codex_file.unlink()
+
+            result = run_json("vibecheck_optimize_bulk.py", payload_path, "claude_code")
+            payload = json.loads(payload_path.read_text())
+
+        tool = next(item for item in payload["optimization_plan"]["tools"] if item["tool_id"] == "codex")
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["results"][0]["applied"], [])
+        self.assertEqual(result["results"][0]["skipped"][0]["reason"], "missing_or_not_editable")
+        self.assertEqual(tool["steps"][0]["execution"]["status"], "skipped")
+        self.assertEqual(tool["execution_state"]["applied_step_ranks"], [])
+        self.assertEqual(tool["execution_state"]["skipped_step_ranks"], [1])
+
     def test_vibecheck_optimize_accumulates_rules_across_steps_and_updates_state(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             base = Path(tmpdir)
@@ -1597,6 +2910,60 @@ class RegressionTests(unittest.TestCase):
         self.assertEqual(content.count("<!-- vibecheck:cost-rules:start -->"), 1)
         tool = payload["optimization_plan"]["tools"][0]
         self.assertEqual(tool["execution_state"]["applied_step_ranks"], [1, 2])
+
+    def test_vibecheck_optimize_marks_step_skipped_when_target_disappears_before_apply(self):
+        with tempfile.TemporaryDirectory() as tmpdir:
+            base = Path(tmpdir)
+            instruction_path = base / "AGENTS.md"
+            instruction_path.write_text("# Existing rules\n")
+            payload_path = base / "payload.json"
+            payload_path.write_text(
+                json.dumps(
+                    {
+                        "optimization_plan": {
+                            "tool_sequence": ["codex"],
+                            "tools": [
+                                {
+                                    "tool_id": "codex",
+                                    "tool_label": "OpenAI Codex CLI",
+                                    "priority_rank": 1,
+                                    "before_after": {
+                                        "current_avg_cost_per_session": 1.20,
+                                        "projected_avg_cost_per_session": 0.80,
+                                        "projected_monthly_savings": 20.0,
+                                        "waste_ratio_pct": 33.0,
+                                    },
+                                    "steps": [
+                                        {
+                                            "rank": 1,
+                                            "title": "Narration",
+                                            "patterns": [{"key": "idle_narration"}],
+                                            "projected_savings_per_session": 0.40,
+                                            "projected_monthly_savings": 20.0,
+                                            "target_files": [{"kind": "instruction_file", "file": str(instruction_path), "exists": True}],
+                                        }
+                                    ],
+                                }
+                            ]
+                        }
+                    }
+                )
+            )
+            instruction_path.unlink()
+
+            result = run_json("vibecheck_optimize.py", payload_path, "codex", 1)
+            payload = json.loads(payload_path.read_text())
+            final = run_json("present_final_success.py", payload_path)
+
+        tool = payload["optimization_plan"]["tools"][0]
+        self.assertTrue(result["ok"])
+        self.assertEqual(result["applied"], [])
+        self.assertEqual(result["skipped"][0]["reason"], "missing_or_not_editable")
+        self.assertEqual(tool["steps"][0]["execution"]["status"], "skipped")
+        self.assertEqual(tool["execution_state"]["applied_step_ranks"], [])
+        self.assertEqual(tool["execution_state"]["skipped_step_ranks"], [1])
+        self.assertEqual(final["summary"]["tools_optimized"], 0)
+        self.assertIn("No changes were applied", final["hero"]["headline"])
 
     def test_present_next_workflow_item_advances_from_step_to_tool_success_for_single_tool(self):
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -2078,6 +3445,205 @@ class RegressionTests(unittest.TestCase):
         self.assertIn("## Skipped Steps", content)
         self.assertIn("2. Narration", content)
         self.assertIn("## Finish Here", content)
+
+    def test_find_cursor_logs_strips_file_uri_prefix_from_workspace_path(self):
+        import find_cursor_logs
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            workspace_json = Path(tmpdir) / "workspace.json"
+            workspace_json.write_text(json.dumps({"folder": "file:///Users/test/project"}))
+            workspace_path = find_cursor_logs.load_workspace_path(workspace_json)
+
+        self.assertEqual(workspace_path, "/Users/test/project")
+
+    def test_export_logs_uses_workbuddy_filenames_for_workbuddy_exports(self):
+        import export_logs
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            base = Path(tmpdir)
+            src = base / "src"
+            dest = base / "dest"
+            (src / "logs").mkdir(parents=True)
+            (src / "User" / "workspaceStorage" / "abc").mkdir(parents=True)
+            (src / "User" / "globalStorage").mkdir(parents=True)
+            (src / "workbuddy-sessions.vscdb").write_text("db")
+            (src / "logs" / "workbuddy.log").write_text("log")
+            (src / "User" / "workspaceStorage" / "abc" / "workspace.json").write_text("{}")
+            (src / "User" / "workspaceStorage" / "abc" / "state.vscdb").write_text("state")
+            (src / "User" / "globalStorage" / "state.vscdb").write_text("global")
+
+            with patch.object(export_logs, "find_source", return_value=(src, "WorkBuddy")):
+                ok = export_logs.export(days=14, dest=dest, tool="workbuddy")
+                copied_index = (dest / "workbuddy-sessions.vscdb").exists()
+                copied_log = (dest / "logs" / "workbuddy.log").exists()
+
+        self.assertTrue(ok)
+        self.assertTrue(copied_index)
+        self.assertTrue(copied_log)
+
+    def test_analyze_buddy_sessions_parses_top_level_buddy_logs(self):
+        import analyze_buddy_sessions
+
+        for filename in ("codebuddy.log", "workbuddy.log"):
+            with self.subTest(filename=filename), tempfile.TemporaryDirectory() as tmpdir:
+                logs_dir = Path(tmpdir) / "logs"
+                logs_dir.mkdir()
+                (logs_dir / filename).write_text(
+                    "2026-04-09 00:00:00.000 Reporting session created for run-1: conversationId=abc123\n"
+                    "2026-04-09 00:00:01.000 Setting session model for abc123: gpt-5.4\n"
+                    "2026-04-09 00:00:02.000 Prompting session abc123\n"
+                    "2026-04-09 00:00:03.000 Sub-run run-1 completed successfully, output length: 400, foo messageCount: 9\n"
+                )
+
+                stats = analyze_buddy_sessions.parse_logs(logs_dir)
+
+                self.assertIn("abc123", stats)
+                self.assertEqual(stats["abc123"]["runs"], 1)
+                self.assertEqual(stats["abc123"]["message_count"], 9)
+                self.assertEqual(stats["abc123"]["output_chars"], 400)
+                self.assertIn("gpt-5.4", stats["abc123"]["models"])
+
+    def test_find_workbuddy_logs_uses_linux_config_root(self):
+        import find_workbuddy_logs
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            home = Path(tmpdir)
+            config_root = home / ".config" / "WorkBuddy"
+            config_root.mkdir(parents=True)
+            index_db = config_root / "workbuddy-sessions.vscdb"
+            conn = sqlite3.connect(index_db)
+            conn.execute("CREATE TABLE ItemTable (key TEXT, value TEXT)")
+            conn.execute(
+                "INSERT INTO ItemTable (key, value) VALUES (?, ?)",
+                (
+                    "session:abc123",
+                    json.dumps(
+                        {
+                            "conversationId": "abc123",
+                            "cwd": "/tmp/demo",
+                            "title": "Demo",
+                            "createdAt": "2026-04-09T00:00:00Z",
+                            "updatedAt": "2026-04-09T00:05:00Z",
+                        }
+                    ),
+                ),
+            )
+            conn.commit()
+            conn.close()
+            (config_root / "logs").mkdir()
+
+            output = StringIO()
+            with patch.object(find_workbuddy_logs.platform, "system", return_value="Linux"), \
+                patch.object(find_workbuddy_logs.Path, "home", return_value=home), \
+                patch.object(sys, "argv", ["find_workbuddy_logs.py", "14"]), \
+                redirect_stdout(output):
+                try:
+                    find_workbuddy_logs.main()
+                except SystemExit:
+                    pass
+
+            payload = json.loads(output.getvalue())
+            self.assertEqual(payload["total_sessions"], 1)
+            self.assertEqual(payload["projects_dir"], str(config_root))
+
+    def test_detect_tool_workbuddy_registry_uses_workbuddy_session_db(self):
+        workbuddy_patterns = [
+            pattern
+            for patterns in detect_tool.TOOLS["workbuddy"]["log_paths"].values()
+            for pattern in patterns
+        ]
+
+        self.assertTrue(any("workbuddy-sessions.vscdb" in pattern for pattern in workbuddy_patterns))
+        self.assertFalse(any("codebuddy-sessions.vscdb" in pattern for pattern in workbuddy_patterns))
+        self.assertFalse(any("workspaceStorage" in pattern for pattern in workbuddy_patterns))
+
+    def test_export_logs_prefers_workbuddy_source_with_session_data(self):
+        import export_logs
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            home = Path(tmpdir)
+            (home / ".workbuddy").mkdir()
+            config_root = home / ".config" / "WorkBuddy"
+            config_root.mkdir(parents=True)
+            (config_root / "workbuddy-sessions.vscdb").write_text("db")
+
+            with patch.object(export_logs.platform, "system", return_value="Linux"), \
+                patch.object(export_logs.Path, "home", return_value=home):
+                source, tool_name = export_logs.find_source("workbuddy")
+
+            self.assertEqual(tool_name, "WorkBuddy")
+            self.assertEqual(source, config_root)
+
+    def test_find_codebuddy_logs_uses_linux_config_root(self):
+        import find_codebuddy_logs
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            home = Path(tmpdir)
+            config_root = home / ".config" / "CodeBuddy"
+            config_root.mkdir(parents=True)
+            index_db = config_root / "codebuddy-sessions.vscdb"
+            conn = sqlite3.connect(index_db)
+            conn.execute("CREATE TABLE ItemTable (key TEXT, value TEXT)")
+            conn.execute(
+                "INSERT INTO ItemTable (key, value) VALUES (?, ?)",
+                (
+                    "session:abc123",
+                    json.dumps(
+                        {
+                            "conversationId": "abc123",
+                            "cwd": "/tmp/demo",
+                            "title": "Demo",
+                            "createdAt": "2026-04-09T00:00:00Z",
+                            "updatedAt": "2026-04-09T00:05:00Z",
+                        }
+                    ),
+                ),
+            )
+            conn.commit()
+            conn.close()
+            (home / ".codebuddy").mkdir()
+            (config_root / "logs").mkdir()
+
+            output = StringIO()
+            with patch.object(find_codebuddy_logs.platform, "system", return_value="Linux"), \
+                patch.object(find_codebuddy_logs.Path, "home", return_value=home), \
+                patch.object(sys, "argv", ["find_codebuddy_logs.py", "14"]), \
+                redirect_stdout(output):
+                try:
+                    find_codebuddy_logs.main()
+                except SystemExit:
+                    pass
+
+            payload = json.loads(output.getvalue())
+            self.assertEqual(payload["total_sessions"], 1)
+            self.assertEqual(payload["projects_dir"], str(config_root))
+
+    def test_detect_tool_codebuddy_registry_uses_session_db_not_project_jsonl(self):
+        codebuddy_patterns = [
+            pattern
+            for patterns in detect_tool.TOOLS["codebuddy"]["log_paths"].values()
+            for pattern in patterns
+        ]
+
+        self.assertTrue(any("codebuddy-sessions.vscdb" in pattern for pattern in codebuddy_patterns))
+        self.assertFalse(any(".jsonl" in pattern for pattern in codebuddy_patterns))
+
+    def test_export_logs_prefers_codebuddy_source_with_session_data(self):
+        import export_logs
+
+        with tempfile.TemporaryDirectory() as tmpdir:
+            home = Path(tmpdir)
+            (home / ".codebuddy").mkdir()
+            config_root = home / ".config" / "CodeBuddy"
+            config_root.mkdir(parents=True)
+            (config_root / "codebuddy-sessions.vscdb").write_text("db")
+
+            with patch.object(export_logs.platform, "system", return_value="Linux"), \
+                patch.object(export_logs.Path, "home", return_value=home):
+                source, tool_name = export_logs.find_source("codebuddy")
+
+            self.assertEqual(tool_name, "CodeBuddy")
+            self.assertEqual(source, config_root)
 
     def test_validate_scan_payload_rejects_bad_approval_command_shape(self):
         payload_path = ROOT / "tests/fixtures/tmp-invalid-payload.json"

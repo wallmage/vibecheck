@@ -305,13 +305,15 @@ If a pattern has near-zero cost for this user, skip it entirely. If only 2 steps
 4. **Ask permission explicitly** — end each step with a direct question: "Want me to apply this change? (You can always revert from the backup.)" Then STOP and WAIT for the user's response. Do not continue to the next step until the user replies.
 
 5. **Handle the response:**
-   - **Yes** → apply the change, confirm, move to next step.
-   - **No / skip** → ask briefly: "Any concern, or just skip this one?" If they share thoughts, acknowledge them. Then move to next step. Never push.
+   - **Yes** → apply the change with `vibecheck_optimize.py`, then call `present_next_workflow_item.py` to continue.
+   - **No / skip** → ask briefly: "Any concern, or just skip this one?" If they share thoughts, acknowledge them. Then mark the step skipped with `vibecheck_skip_step.py` and call `present_next_workflow_item.py`. Never push.
    - **Modify** → if they want a softer version, offer the alternative from [references/fix-blocks.md](references/fix-blocks.md).
 
 **Structured helper payloads:** If the runtime supports structured payloads, use:
 - `python3 SKILL_DIR/scripts/present_optimization_step.py /tmp/vibecheck_result.json <tool_id> <step_rank>` to build the approval card for the next step.
-- `python3 SKILL_DIR/scripts/present_tool_success.py /tmp/vibecheck_result.json <tool_id>` to reveal the per-tool win and prompt the user to continue to the next ranked tool.
+- `python3 SKILL_DIR/scripts/vibecheck_skip_step.py /tmp/vibecheck_result.json <tool_id> <step_rank>` if the user skips a step and you need to advance the state truthfully.
+- `python3 SKILL_DIR/scripts/present_next_workflow_item.py /tmp/vibecheck_result.json <tool_id>` after each apply or skip. It returns the next pending step for that tool, or the final per-tool success payload once that tool is complete.
+- `python3 SKILL_DIR/scripts/present_tool_success.py /tmp/vibecheck_result.json <tool_id>` when you explicitly need the standalone per-tool success payload.
 
 **Every step is optional.** The user can accept steps 1 and 3 but skip 2 and 4. That's fine. Each step is independent.
 

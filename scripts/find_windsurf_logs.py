@@ -7,7 +7,6 @@ Primary supported source:
 Compatibility fallback:
 - Older local Windsurf / Codeium cache paths under ~/.codeium/windsurf/cascade/*
 """
-import glob
 import json
 import platform
 import sys

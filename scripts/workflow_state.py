@@ -132,7 +132,8 @@ def ensure_execution_state(payload):
         applied = [step.get("rank") for step in applied_steps(tool)]
         skipped = [step.get("rank") for step in skipped_steps(tool)]
         pending = [step.get("rank") for step in pending_steps(tool)]
-        can_auto_optimize = bool(effective_targets or step_targets or existing_execution)
+        has_prior_execution = existing_execution.get("status") not in (None, "blocked", {})
+        can_auto_optimize = bool(effective_targets or step_targets or has_prior_execution)
 
         if can_auto_optimize and tool_steps:
             actionable_sequence.append(tool.get("tool_id"))
@@ -156,7 +157,10 @@ def ensure_execution_state(payload):
             "before_after": compute_before_after(tool, use_execution_state=True),
         }
 
-    plan["tool_sequence"] = actionable_sequence or existing_sequence
+    if existing_sequence:
+        plan["tool_sequence"] = [tid for tid in existing_sequence if tid in actionable_sequence] + [tid for tid in actionable_sequence if tid not in existing_sequence]
+    else:
+        plan["tool_sequence"] = actionable_sequence
     sequence = plan.get("tool_sequence", [])
     plan["entry_tool_id"] = sequence[0] if sequence else None
     return payload

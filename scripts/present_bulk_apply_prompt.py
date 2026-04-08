@@ -5,7 +5,7 @@ import os
 import sys
 
 from scan_contract import PAYLOAD_KINDS
-from workflow_state import ensure_execution_state
+from workflow_state import actionable_targets, ensure_execution_state
 
 
 def fail(message):
@@ -41,7 +41,7 @@ def count_unique_target_files(tools):
     seen = set()
     for tool in tools:
         for step in tool.get("steps", []):
-            for target in step.get("target_files", []):
+            for target in actionable_targets(step.get("target_files", [])):
                 path = target.get("path") or target.get("file")
                 if path:
                     seen.add(path)
@@ -58,8 +58,13 @@ def main():
     completed_tool_id = sys.argv[2]
     plan = payload.get("optimization_plan", {})
     completed_tool = find_tool(plan, completed_tool_id)
-    remaining_ids = [tool_id for tool_id in plan.get("tool_sequence", []) if tool_id != completed_tool_id]
-    remaining = [find_tool(plan, tool_id) for tool_id in remaining_ids]
+    remaining = []
+    for tool_id in plan.get("tool_sequence", []):
+        if tool_id == completed_tool_id:
+            continue
+        tool = find_tool(plan, tool_id)
+        if tool.get("can_auto_optimize") and tool.get("steps"):
+            remaining.append(tool)
 
     remaining_tools = len(remaining)
     remaining_targets = count_unique_target_files(remaining)
