@@ -182,6 +182,7 @@ def aggregate(results):
     out = {
         'summary': {
             'sessions': n,
+            'total_sessions': n,
             'date_range': f"{results[0]['date']} to {results[-1]['date']}",
             'total_cost': round(total_cost, 2),
             'avg_cost_per_session': round(total_cost / n, 2),

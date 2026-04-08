@@ -86,6 +86,12 @@ python3 SKILL_DIR/scripts/explain.py /tmp/vibecheck_analysis.json > /tmp/vibeche
 
 Do not paste raw JSON to the user. Read the lesson JSON and explain results in plain language.
 
+**Do not write inline Python to inspect the analysis JSON.** Use `report.py` and `explain.py` — they handle all formatting. If you must inspect a value, the analysis JSON schema is:
+- `summary.total_sessions` (int), `summary.total_cost` (float), `summary.avg_cost_per_session` (float), `summary.avg_turns_per_session` (float), `summary.waste_percentage` (float), `summary.total_waste` (float)
+- `waste_breakdown.<pattern>` is a **dict** with keys `total_cost`, `per_session`, `percentage_of_waste`, `description` — never format it directly as a number
+- `sessions` is an array of per-session results
+- `model_mix`, `per_project`, `platform_mix` are dicts of dicts
+
 **If no logs found** (sandbox environment): The JSON includes `platform` (mac/windows/linux).
 
 Explain briefly (2-3 sentences):
