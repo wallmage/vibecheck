@@ -14,15 +14,11 @@ Works with Claude, GPT, Gemini, DeepSeek, Qwen, Kimi, GLM, MiniMax. Supports 24+
 
 ## How to install
 
-Copy this into Claude Code (or any AI coding tool) and press Enter:
+Paste this into your AI coding tool and press Enter:
 
-> Clone https://github.com/wallmage/vibecheck into my skills folder at ~/.claude/skills/vibecheck, then run /vibecheck scan
+> Help me install this skill: https://github.com/wallmage/vibecheck
 
 That's it. Your AI does the rest.
-
-**Other tools** (Cursor, Codex, Windsurf, Copilot, Cowork, etc.):
-
-> Clone https://github.com/wallmage/vibecheck to /tmp/vibecheck, read SKILL.md, and run /vibecheck scan
 
 ### Wait, what's a skill?
 
